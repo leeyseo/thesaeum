@@ -2,66 +2,54 @@
   var doc = app.activeDocument;
   if (!doc) { alert("문서가 없습니다"); return; }
 
-  /* === 파라미터 === */
-  var gap = 50;          // 아트보드 간 간격
-  var detachTemplate = true; // 템플릿도 링크 끊어 세트0 유지
+  var gap      = 50;                       // 아트보드 간 간격
+  var dsCount  = doc.dataSets.length;
+  if (dsCount === 0) { alert("데이터 세트가 없습니다"); return; }
 
-  /* === 템플릿 아트보드 === */
-  var tplIdx = doc.artboards.getActiveArtboardIndex();
-  var tplAB  = doc.artboards[tplIdx].artboardRect;  // [L,T,R,B]
-  var abH    = tplAB[1] - tplAB[3];
+  /* ── 1. 템플릿 아트보드/오브젝트 확보 ─────────────────────────── */
+  var tplIdx  = doc.artboards.getActiveArtboardIndex();
+  var tplAB   = doc.artboards[tplIdx];
+  var tplRect = tplAB.artboardRect;        // [L, T, R, B]
+  var abH     = tplRect[1] - tplRect[3];   // 높이
 
-  /* === 데이터 세트 존재? === */
-  if (doc.dataSets.length === 0){
-    alert("데이터 세트(Variables)가 없습니다"); return;
+  // 템플릿 내부 오브젝트만 수집
+  function inside(ab, it){
+    var b = it.geometricBounds;            // [L,T,R,B]
+    return b[0] >= ab[0] && b[2] <= ab[2] && b[3] >= ab[3] && b[1] <= ab[1];
   }
-
-  /* === 템플릿 오브젝트 수집 === */
-  function inside(ab, item){
-    var g=item.geometricBounds;
-    return g[2]>=ab[0] && g[0]<=ab[2] && g[1]>=ab[3] && g[3]<=ab[1];
+  var tplItems = [];
+  for (var i = 0; i < doc.pageItems.length; i++){
+    var it = doc.pageItems[i];
+    if (!it.locked && !it.hidden && inside(tplRect, it)) tplItems.push(it);
   }
-  var tplItems=[];
-  for (var i=0;i<doc.pageItems.length;i++){
-    var it=doc.pageItems[i];
-    if (!it.locked && !it.hidden && inside(tplAB,it)) tplItems.push(it);
-  }
-  if (tplItems.length===0){ alert("템플릿 내부 오브젝트가 없습니다"); return; }
+  if (!tplItems.length){ alert("템플릿 내부 오브젝트가 없습니다"); return; }
 
-  /* ---- 템플릿 링크도 끊어 세트0 고정 ---- */
-  if (detachTemplate){
-    for (var t=0;t<tplItems.length;t++){
-      if (tplItems[t].contentVariable)    tplItems[t].contentVariable = null;
-      if (tplItems[t].pageItemVariable)   tplItems[t].pageItemVariable = null;
-      if (tplItems[t].visibilityVariable) tplItems[t].visibilityVariable = null;
+  var basePos = tplItems[0].position;      // 그룹 복사 시 기준 좌표
+
+  /* ── 2. 데이터셋별로 아트보드+디자인 생성 ──────────────────── */
+  for (var d = 0; d < dsCount; d++){
+    doc.dataSets[d].display();             // ← 해당 데이터셋 값을 적용
+
+    // (0번은 기존 템플릿 아트보드 재사용, 1번부터 새로 생성)
+    var offsetY = -d * (abH + gap);        // 아래로 내려갈수록 Y가 음수
+    var targetABIndex;
+    if (d === 0){
+      targetABIndex = tplIdx;
+    }else{
+      var newRect = [tplRect[0], tplRect[1]+offsetY,
+                     tplRect[2], tplRect[3]+offsetY];
+      targetABIndex = doc.artboards.add(newRect).index;
     }
-  }
 
-  /* === 루프: 세트마다 복제 & 고정 === */
-  var offsetY=0;
-  for (var d=0; d<doc.dataSets.length; d++){
-
-    doc.dataSets[d].display();          // ① 세트 적용
-
-    /* 새 보드 + 복제 */
-    if (d>0){
-      offsetY -= (abH + gap);
-      var newAB=[tplAB[0],tplAB[1]+offsetY,tplAB[2],tplAB[3]+offsetY];
-      var abIdx = doc.artboards.add(newAB);
-
-      for (var k=0;k<tplItems.length;k++){
-        var dup = tplItems[k].duplicate();
-        dup.position=[dup.position[0], dup.position[1]+offsetY];
-        dup.artboard = abIdx;
-
-        /* ③ 링크 끊기 → 고정 */
-        if (dup.contentVariable)    dup.contentVariable = null;
-        if (dup.pageItemVariable)   dup.pageItemVariable = null;
-        if (dup.visibilityVariable) dup.visibilityVariable = null;
-      }
+    // 현재 데이터셋이 반영된 상태의 템플릿 오브젝트 복사
+    var grp = doc.groupItems.add();
+    for (var j = 0; j < tplItems.length; j++){
+      tplItems[j].duplicate(grp, ElementPlacement.PLACEATEND);
     }
+    grp.position = [grp.position[0], grp.position[1] + offsetY];
+    grp.artboard = targetABIndex;
   }
 
-  alert("데이터 세트 "+doc.dataSets.length+"개 → 아트보드 "+
-        doc.artboards.length+"개 배치 완료!");
+  // 끝나면 첫 번째 데이터셋으로 다시 돌려놓기(선택 사항)
+  doc.dataSets[0].display();
 })();
