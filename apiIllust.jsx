@@ -1,64 +1,27 @@
 (function () {
-  if (app.documents.length === 0) {
-    alert("열린 문서가 없습니다.");
+  var socket = Socket; // 생성자 아님!
+
+  if (!socket.open("localhost:3000", "binary")) {
+    alert("❌ 소켓 열기 실패");
     return;
   }
 
-  var doc = app.activeDocument;
+  // 요청 바디
+  var body = '{"filename":"test.ai","layers":5}';
+  var req = "";
+  req += "POST /receive-info HTTP/1.1\r\n";
+  req += "Host: localhost\r\n";
+  req += "Content-Type: application/json\r\n";
+  req += "Content-Length: " + body.length + "\r\n";
+  req += "Connection: close\r\n";
+  req += "\r\n";
+  req += body;
 
-  // ───────────── 정보 수집 ─────────────
-  var fileName = doc.name;
-  var layerCount = doc.layers.length;
-  var artboardCount = doc.artboards.length;
+  socket.write(req);
 
-  // ───────────── 데이터셋 수 확인 ─────────────
-  var datasetCount = 0;
-  try {
-    if (doc.variables.length > 0) {
-      datasetCount = doc.dataSets.length;
-    }
-  } catch (e) {
-    datasetCount = 0;
-  }
+  // 응답 읽기
+  var response = socket.read(999999);
+  socket.close();
 
-  // ───────────── JSON.stringify 대체 ─────────────
-  function toJSON(obj) {
-    var s = [];
-    for (var key in obj) {
-      if (!obj.hasOwnProperty(key)) continue;
-      var val = obj[key];
-      var valStr = (typeof val === "string") ? ('"' + val + '"') : val;
-      s.push('"' + key + '":' + valStr);
-    }
-    return '{' + s.join(",") + '}';
-  }
-
-  var payload = {
-    filename: fileName,
-    layers: layerCount,
-    artboards: artboardCount,
-    datasets: datasetCount
-  };
-
-  var jsonStr = toJSON(payload);
-
-  // ───────────── 임시 파일 저장 ─────────────
-  var tempFile = new File(Folder.temp + "/ai_payload.json");
-  tempFile.encoding = "UTF-8";
-  tempFile.open("w");
-  tempFile.write(jsonStr);
-  tempFile.close();
-
-  // ───────────── curl 명령어 ─────────────
-  var endpoint = "http://localhost:3000/receive-info";
-  var curlCmd = 'curl -s -X POST -H "Content-Type: application/json" -d @\"' +
-                tempFile.fsName + '\" ' + endpoint;
-
-  // ───────────── 시스템 명령 실행 ─────────────
-  try {
-    var result = $.callSystem(curlCmd);  // ← 여기만 수정됨!
-    alert("서버 응답:\n" + result);
-  } catch (err) {
-    alert("API 호출 중 오류 발생:\n" + err.message);
-  }
+  alert("✅ 서버 응답:\n" + response);
 })();
