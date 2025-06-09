@@ -6,61 +6,113 @@
 
   var doc = app.activeDocument;
 
-  // ── 사용자로부터 파일명 입력 ──
+  // ── 1. 사용자 파일명 입력 ──
   var fileName = prompt("저장할 파일명을 입력하세요 (확장자 제외):", "my_design");
   if (!fileName) {
     alert("파일명이 입력되지 않아 작업을 취소합니다.");
     return;
   }
 
-  // ── 바탕화면/tmp 폴더 생성 ──
-  var desktop = Folder.desktop;
-  var tmpFolder = new Folder(desktop + "/tmp");
+  // ── 2. tmp 폴더 생성 ──
+  var tmpFolder = new Folder(Folder.desktop + "/tmp");
   if (!tmpFolder.exists) tmpFolder.create();
 
-  // ── 문서 저장 (안정성 확보) ──
+  // ── 3. 문서 저장 ──
   if (doc.modified) doc.save();
 
-  // ── 첫 번째 대지와 첫 번째 레이어 지정 ──
-  var artboard = doc.artboards[0];
-  var abBounds = artboard.artboardRect; // [L, T, R, B]
-  var targetLayer = doc.layers[0];
+  // ── 4. 첫 번째 대지 정보 ──
+  var ab = doc.artboards[0];
+  var abBounds = ab.artboardRect; // [L, T, R, B]
 
-  // ── 모든 선택 해제 후, 해당 대지 내 첫 레이어 아이템만 선택 ──
+  // ── 5. 스크립트 시작 시점의 보이는 레이어 중 가장 위의 것 찾기 ──
+  var targetLayer = null;
+  for (var i = 0; i < doc.layers.length; i++) {
+    if (doc.layers[i].visible) {
+      targetLayer = doc.layers[i];
+      break;
+    }
+  }
+
+  if (!targetLayer) {
+    alert("표시된 레이어가 없습니다. JPG 내보내기를 취소합니다.");
+    return;
+  }
+
+  // ── 6. JPG를 위한 선택 작업 ──
   app.executeMenuCommand("deselectall");
 
-  for (var i = 0; i < targetLayer.pageItems.length; i++) {
-    var item = targetLayer.pageItems[i];
+  // 레이어 상태 백업 및 잠금 해제
+  var layerState = {
+    locked: targetLayer.locked,
+    visible: targetLayer.visible
+  };
+  targetLayer.locked = false;
+  targetLayer.visible = true;
+
+  var selectedItems = [];
+
+  for (var j = 0; j < targetLayer.pageItems.length; j++) {
+    var item = targetLayer.pageItems[j];
+
+    var itemState = {
+      item: item,
+      locked: item.locked,
+      hidden: item.hidden
+    };
+
+    item.locked = false;
+    item.hidden = false;
+
     var b = item.geometricBounds; // [L, T, R, B]
     var intersects =
       b[2] >= abBounds[0] && b[0] <= abBounds[2] &&
       b[1] >= abBounds[3] && b[3] <= abBounds[1];
-    if (intersects) item.selected = true;
+
+    if (intersects) {
+      item.selected = true;
+      selectedItems.push(itemState);
+    } else {
+      item.locked = itemState.locked;
+      item.hidden = itemState.hidden;
+    }
   }
 
-  // ── 저장 경로 설정 ──
+  // ── 7. JPG 저장 ──
   var jpgFile = new File(tmpFolder + "/" + fileName + ".jpg");
-  var aiFile = new File(tmpFolder + "/" + fileName + ".ai");
 
-  // ── 고해상도 JPG 저장 옵션 ──
   var exportOptions = new ExportOptionsJPEG();
   exportOptions.antiAliasing = true;
-  exportOptions.qualitySetting = 100;      // 최고 품질
-  exportOptions.horizontalScale = 300;     // 3배 크기 (고해상도)
+  exportOptions.qualitySetting = 100;
+  exportOptions.horizontalScale = 300;
   exportOptions.verticalScale = 300;
-  exportOptions.resolution = 300;          // 300 dpi
+  exportOptions.resolution = 300;
   exportOptions.optimized = true;
   exportOptions.artBoardClipping = true;
   exportOptions.flattenOutput = OutputFlattening.PRESERVEAPPEARANCE;
 
-  // ── JPG 저장 ──
   doc.exportFile(jpgFile, ExportType.JPEG, exportOptions);
 
-  // ── AI 저장 옵션 ──
+  // ── 8. 선택 오브젝트 상태 복원 ──
+  for (var s = 0; s < selectedItems.length; s++) {
+    var ent = selectedItems[s];
+    ent.item.locked = ent.locked;
+    ent.item.hidden = ent.hidden;
+  }
+
+  // ── 9. 레이어 상태 복원 ──
+  targetLayer.locked = layerState.locked;
+  targetLayer.visible = layerState.visible;
+
+  // ── 10. AI 전체 저장 ──
+  var aiFile = new File(tmpFolder + "/" + fileName + ".ai");
+
   var saveOptions = new IllustratorSaveOptions();
   saveOptions.compatibility = Compatibility.ILLUSTRATOR17;
   saveOptions.flattenOutput = OutputFlattening.PRESERVEAPPEARANCE;
+
   doc.saveAs(aiFile, saveOptions);
 
-  alert("파일이 성공적으로 저장되었습니다.\n위치: " + tmpFolder.fsName);
+  app.executeMenuCommand("deselectall");
+
+
 })();

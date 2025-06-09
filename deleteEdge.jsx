@@ -1,47 +1,43 @@
 (function () {
   if (app.documents.length === 0) {
-    alert("열린 문서가 없습니다.");
-    return;
+    alert("열린 문서가 없습니다."); return;
   }
 
   var doc = app.activeDocument;
   var count = 0;
-  var cutLineLayers = [];
+  var noStroke = new NoColor();
 
-  // 이름에 "칼선"이 포함된 모든 레이어 찾아 숨김 처리
-  for (var i = 0; i < doc.layers.length; i++) {
-    var layer = doc.layers[i];
-    if (layer.name.indexOf("칼선") !== -1) {
-      layer.visible = false;
-      cutLineLayers.push(layer);
+  /* 재귀 처리 ─ 레이어 내부까지 모두 순회 */
+  function processLayer(lay) {
+
+    /* 1) “칼선” 레이어이면 건너뜀 */
+    if (lay.name.indexOf("칼선") !== -1) { return; }
+
+    /* 2) 일시적으로 레이어 표시 */
+    var wasHidden = !lay.visible;
+    if (wasHidden) lay.visible = true;
+
+    /* 3) 이 레이어의 오브젝트 처리 */
+    for (var i = 0; i < lay.pageItems.length; i++) {
+      var it = lay.pageItems[i];
+      try {
+        if (it.stroked) { it.strokeColor = noStroke; count++; }
+      } catch(e) {}        // 텍스트‧이미지 등 stroked 없는 경우 무시
     }
+
+    /* 4) 하위 레이어 재귀 호출 */
+    for (var j = 0; j < lay.layers.length; j++) {
+      processLayer(lay.layers[j]);
+    }
+
+    /* 5) 원래 숨겨져 있었으면 다시 숨김 */
+    if (wasHidden) lay.visible = false;
   }
 
-  // stroke 변경 (칼선 레이어 제외)
-  for (var j = 0; j < doc.pageItems.length; j++) {
-    var item = doc.pageItems[j];
-
-    if (item.locked || item.hidden) continue;
-
-    // 해당 오브젝트가 "칼선" 레이어에 속해 있는지 확인
-    var isInCutLineLayer = false;
-    for (var k = 0; k < cutLineLayers.length; k++) {
-      if (item.layer === cutLineLayers[k]) {
-        isInCutLineLayer = true;
-        break;
-      }
-    }
-
-    if (isInCutLineLayer) continue;
-
-    if (item.stroked) {
-      item.strokeColor = new NoColor();
-      count++;
-    }
+  /* 최상위 레이어부터 실행 */
+  for (var k = 0; k < doc.layers.length; k++) {
+    processLayer(doc.layers[k]);
   }
 
-  alert(
-    `"칼선" 관련 레이어 ${cutLineLayers.length}개를 숨겼습니다.\n` +
-    `그 외 ${count}개의 오브젝트 외곽선을 투명 처리했습니다.`
-  );
+  // alert(count + "개의 오브젝트 외곽선을 투명색으로 변환 완료!");
 })();
