@@ -189,7 +189,7 @@
     }
 
     if (lyrVal && lyrVal !== "Nan") gIdx = lyrVal;
-    // alert("DS"+(d+1)+" → 레이어 값: "+ (lyrVal || "읽기 실패"));
+    alert("DS"+(d+1)+" → 레이어 값: "+ (lyrVal || "읽기 실패"));
 
     /* 2-2) fallback: 이름/직책 */
     if (!gIdx) {

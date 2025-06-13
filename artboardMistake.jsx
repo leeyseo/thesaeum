@@ -42,7 +42,7 @@
     for (var j=0;j<ABs.length;j++) if(intersects(bb,ABs[j])){ on=true; break; }
     if(!on){ rectPool.push(bb); itemPool.push(it); }
   }
-  if(!rectPool.length){ alert("대지 밖 디자인이 없습니다."); return; }
+  // if(!rectPool.length){ alert("대지 밖 디자인이 없습니다."); return; }
 
   /* ── 3. 겹침 병합 ── */
   var groups=[];
@@ -78,5 +78,5 @@
   for (var key in matchedSet) matched.push(matchedSet[key]);
   doc.selection = matched;
 
-  alert("새 아트보드: "+made+"개\n선택된 디자인(크기 매칭): "+matched.length+"개");
+  // alert("새 아트보드: "+made+"개\n선택된 디자인(크기 매칭): "+matched.length+"개");
 })();
