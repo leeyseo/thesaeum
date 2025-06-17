@@ -1,43 +1,72 @@
+/**
+ * ● 각 아트보드에서
+ *      ① selectallinartboard 로 보이는 오브젝트 선택
+ *      ② 선택된 오브젝트의 layer 이름에 "칼선"이 없으면
+ *         stroked → false   (또는 strokeColor = NoColor)
+ *
+ * ES3 ExtendScript  |  Illustrator CS3+
+ */
 (function () {
-  if (app.documents.length === 0) {
-    alert("열린 문서가 없습니다."); return;
+
+  if (app.documents.length === 0) { alert("열린 문서가 없습니다."); return; }
+
+  var doc   = app.activeDocument,
+      noCol = new NoColor(),
+      ABs   = doc.artboards,
+      changed = 0;
+
+  /* 잠금·숨김·가이드 해제 & 복구용 헬퍼 -------------------------- */
+  function unlockChain(lay){
+    var arr = [], cur = lay;
+    while (cur){
+      arr.push({layer:cur, locked:cur.locked, visible:cur.visible, template:cur.template});
+      cur.locked=false; cur.visible=true; cur.template=false;
+      cur = (cur.parent && cur.parent.typename==="Layer") ? cur.parent : null;
+    }
+    return arr;
+  }
+  function restore(arr){
+    for (var i=0;i<arr.length;i++){
+      var s = arr[i];
+      s.layer.locked=s.locked; s.layer.visible=s.visible; s.layer.template=s.template;
+    }
   }
 
-  var doc = app.activeDocument;
-  var count = 0;
-  var noStroke = new NoColor();
+  /* ── 아트보드별 루프 ───────────────────────── */
+  for (var a = 0; a < ABs.length; a++) {
 
-  /* 재귀 처리 ─ 레이어 내부까지 모두 순회 */
-  function processLayer(lay) {
+    /* 1) 해당 보드 활성 & 선택 */
+    doc.selection = null;
+    doc.artboards.setActiveArtboardIndex(a);
+    app.executeMenuCommand("selectallinartboard");
+    if (doc.selection.length === 0) continue;          // 비어 있으면 skip
 
-    /* 1) “칼선” 레이어이면 건너뜀 */
-    if (lay.name.indexOf("칼선") !== -1) { return; }
+    /* 2) 선택 항목 처리 */
+    var sel = doc.selection;
+    for (var i = 0; i < sel.length; i++) {
 
-    /* 2) 일시적으로 레이어 표시 */
-    var wasHidden = !lay.visible;
-    if (wasHidden) lay.visible = true;
+      /* 2-A. 레이어가 '칼선' 인가? */
+      var lay = sel[i].layer,
+          isCut = (lay.name.indexOf("칼선") !== -1);
 
-    /* 3) 이 레이어의 오브젝트 처리 */
-    for (var i = 0; i < lay.pageItems.length; i++) {
-      var it = lay.pageItems[i];
+      if (isCut) continue;                             // 건너뜀
+
+      /* 2-B. 잠금/숨김 레이어면 잠시 해제 */
+      var saved = unlockChain(lay);
+
+      /* 2-C. 실제 stroke 제거 */
       try {
-        if (it.stroked) { it.strokeColor = noStroke; count++; }
-      } catch(e) {}        // 텍스트‧이미지 등 stroked 없는 경우 무시
-    }
+        if (sel[i].stroked) {
+          sel[i].strokeColor = noCol;                  // 또는 sel[i].stroked=false;
+          changed++;
+        }
+      } catch (_) {}
 
-    /* 4) 하위 레이어 재귀 호출 */
-    for (var j = 0; j < lay.layers.length; j++) {
-      processLayer(lay.layers[j]);
+      restore(saved);
     }
-
-    /* 5) 원래 숨겨져 있었으면 다시 숨김 */
-    if (wasHidden) lay.visible = false;
   }
 
-  /* 최상위 레이어부터 실행 */
-  for (var k = 0; k < doc.layers.length; k++) {
-    processLayer(doc.layers[k]);
-  }
+  doc.selection = null;
+  // alert("투명으로 바꾼 테두리: "+changed+"개");
 
-  // alert(count + "개의 오브젝트 외곽선을 투명색으로 변환 완료!");
 })();
