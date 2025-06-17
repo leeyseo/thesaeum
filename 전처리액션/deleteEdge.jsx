@@ -1,72 +1,43 @@
-/**
- * ● 각 아트보드에서
- *      ① selectallinartboard 로 보이는 오브젝트 선택
- *      ② 선택된 오브젝트의 layer 이름에 "칼선"이 없으면
- *         stroked → false   (또는 strokeColor = NoColor)
- *
- * ES3 ExtendScript  |  Illustrator CS3+
- */
-(function () {
-
-  if (app.documents.length === 0) { alert("열린 문서가 없습니다."); return; }
-
-  var doc   = app.activeDocument,
-      noCol = new NoColor(),
-      ABs   = doc.artboards,
-      changed = 0;
-
-  /* 잠금·숨김·가이드 해제 & 복구용 헬퍼 -------------------------- */
-  function unlockChain(lay){
-    var arr = [], cur = lay;
-    while (cur){
-      arr.push({layer:cur, locked:cur.locked, visible:cur.visible, template:cur.template});
-      cur.locked=false; cur.visible=true; cur.template=false;
-      cur = (cur.parent && cur.parent.typename==="Layer") ? cur.parent : null;
-    }
-    return arr;
-  }
-  function restore(arr){
-    for (var i=0;i<arr.length;i++){
-      var s = arr[i];
-      s.layer.locked=s.locked; s.layer.visible=s.visible; s.layer.template=s.template;
-    }
+﻿(function () {
+  if (app.documents.length === 0) {
+    alert("열린 문서가 없습니다.");
+    return;
   }
 
-  /* ── 아트보드별 루프 ───────────────────────── */
-  for (var a = 0; a < ABs.length; a++) {
+  var doc       = app.activeDocument;
+  var noStroke  = new NoColor();        // 투명색
+  var abCount   = doc.artboards.length;
+  var changed   = 0;
+  var oldIndex  = doc.artboards.getActiveArtboardIndex(); // 복원용
 
-    /* 1) 해당 보드 활성 & 선택 */
-    doc.selection = null;
-    doc.artboards.setActiveArtboardIndex(a);
-    app.executeMenuCommand("selectallinartboard");
-    if (doc.selection.length === 0) continue;          // 비어 있으면 skip
+  /* ───────────────── 대지별 처리 ───────────────── */
+  for (var a = 0; a < abCount; a++) {
+    doc.selection = null;                       // 선택 초기화
+    doc.artboards.setActiveArtboardIndex(a);    // 대지 활성
+    doc.selectObjectsOnActiveArtboard();        // 해당 대지 객체 선택
 
-    /* 2) 선택 항목 처리 */
     var sel = doc.selection;
-    for (var i = 0; i < sel.length; i++) {
+    for (var i = 0; i < sel.length; i++) recurse(sel[i]);
+  }
 
-      /* 2-A. 레이어가 '칼선' 인가? */
-      var lay = sel[i].layer,
-          isCut = (lay.name.indexOf("칼선") !== -1);
+  /* ───────────────── 복원 및 완료 알림 ───────────────── */
+  doc.artboards.setActiveArtboardIndex(oldIndex);
+  alert("외곽선 투명색 적용: " + changed + "개 완료");
 
-      if (isCut) continue;                             // 건너뜀
+  /* ──────────── 그룹/복합패스 재귀 처리 함수 ──────────── */
+  function recurse(item) {
+    if (item.locked || item.hidden) return;          // 잠김/숨김 건너뜀
+    if (item.layer && item.layer.name.indexOf("칼선") !== -1) return; // ‘칼선’ 레이어 건너뜀
 
-      /* 2-B. 잠금/숨김 레이어면 잠시 해제 */
-      var saved = unlockChain(lay);
-
-      /* 2-C. 실제 stroke 제거 */
+    if (item.typename === "GroupItem" || item.typename === "CompoundPathItem") {
+      for (var j = 0; j < item.pageItems.length; j++) recurse(item.pageItems[j]);
+    } else {
       try {
-        if (sel[i].stroked) {
-          sel[i].strokeColor = noCol;                  // 또는 sel[i].stroked=false;
+        if (item.stroked) {
+          item.strokeColor = noStroke;
           changed++;
         }
-      } catch (_) {}
-
-      restore(saved);
+      } catch (e) { /* 일부 항목은 stroked 속성이 없음 */ }
     }
   }
-
-  doc.selection = null;
-  // alert("투명으로 바꾼 테두리: "+changed+"개");
-
 })();
