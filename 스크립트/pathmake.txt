@@ -1,0 +1,31 @@
+function main(workbook: ExcelScript.Workbook) {
+    const sheet = workbook.getActiveWorksheet();
+    const used = sheet.getUsedRange();
+    const values = used.getValues();
+
+    if (values.length < 2) return;
+
+    const headers = values[0];
+    const rowCount = values.length;
+    const colCount = headers.length;
+
+    for (let c = 0; c < colCount; c++) {
+        const header = headers[c]?.toString().toLowerCase() ?? "";
+        if (!header.includes("이미지")) continue;
+
+        const secondVal = values[1][c]?.toString() ?? "";
+        const lastSlash = Math.max(secondVal.lastIndexOf("\\"), secondVal.lastIndexOf("/"));
+        if (lastSlash < 0) continue;  // 경로 아님
+
+        const basePath = secondVal.substring(0, lastSlash + 1); // 예: C:\Users\...\Downloads\
+
+        for (let r = 2; r < rowCount; r++) {
+            const val = values[r][c];
+            if (typeof val === "string" && val.length > 0 && !val.includes(":")) {
+                values[r][c] = basePath + val;
+            }
+        }
+    }
+
+    used.setValues(values);
+}

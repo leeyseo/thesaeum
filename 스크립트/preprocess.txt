@@ -1,0 +1,85 @@
+function main(workbook: ExcelScript.Workbook) {
+    /* ────────────────────────────── 0) 시트·범위 ────────────────────────────── */
+    const sheet: ExcelScript.Worksheet = workbook.getActiveWorksheet();
+    const used: ExcelScript.Range = sheet.getUsedRange();
+    const vals: (string | number | boolean | null)[][] = used.getValues();
+    if (vals.length === 0) return;                                   // 빈 시트
+
+    const heads = vals[0] as (string | number | boolean | null)[];
+    const rowCnt: number = vals.length;
+    const colCnt: number = heads.length;
+    const dataRows = vals.slice(1) as (string | number | boolean | null)[][];
+
+    /* ────────────────── 1) 금지 열 clear ────────────────── */
+    const forbidStr: string[] = ["작업 시안 드라이브 경로", "orderItemId"];
+    const forbidCols: Set<number> = new Set<number>();
+
+    for (let c = 0; c < colCnt; c++) {
+        const label: string = String(heads[c]);
+        if (forbidStr.some(s => label.includes(s))) {
+            sheet.getRangeByIndexes(0, c, rowCnt, 1)
+                .clear(ExcelScript.ClearApplyTo.contents);
+            forbidCols.add(c);
+        }
+    }
+
+    /* ────────────────── 2) 헤더 가공 + 데이터 복사 ────────────────── */
+    const newHeads: (string | number | boolean | null)[] = [];
+    const cleaned: (string | number | boolean | null)[][] =
+        Array(rowCnt - 1)
+            .fill(0)
+            .map(() => [] as (string | number | boolean | null)[]);   // 배열 타입 명시
+
+    /* ▼▼▼ 여기에서 타입 명시 추가 ▼▼▼ */
+    const secondRow: (string | number | boolean | null)[] =
+        rowCnt >= 2 ? dataRows[0] : Array(colCnt).fill(null);
+
+    for (let c = 0; c < colCnt; c++) {
+        if (forbidCols.has(c)) continue;
+
+        const cell2 = secondRow[c];
+        const empty2 = cell2 === null || String(cell2).trim() === "";
+        newHeads.push(empty2 ? "" : String(heads[c]) + "_1");
+
+        for (let r = 0; r < dataRows.length; r++) {
+            cleaned[r].push(dataRows[r][c]);
+        }
+    }
+
+    /* ────────────────── 3) 값이 가장 많은 열 길이 ────────────────── */
+    let maxNon: number = 0;
+    if (cleaned.length && cleaned[0].length) {
+        for (let c = 0; c < cleaned[0].length; c++) {
+            let cnt: number = 0;                                           // 타입 명시
+            for (let r = 0; r < cleaned.length; r++) {
+                const v = cleaned[r][c];
+                if (v !== null && String(v).trim() !== "") cnt++;
+            }
+            if (cnt > maxNon) maxNon = cnt;
+        }
+    }
+
+    /* ────────────────── 4) "레이어" 열 위치 & 삽입 ────────────────── */
+    let lastIdxWith1: number = -1;                                     // 타입 명시
+    for (let i = 0; i < newHeads.length; i++) {
+        if (String(newHeads[i]).trim().endsWith("_1")) lastIdxWith1 = i;
+    }
+    const targetCol: number = lastIdxWith1 + 1;
+
+    if (targetCol >= newHeads.length) {
+        newHeads.push("레이어");
+        for (let r = 0; r < cleaned.length; r++) {
+            cleaned[r].push(r < maxNon ? 1 : "");
+        }
+    } else {
+        newHeads[targetCol] = "레이어";
+        for (let r = 0; r < cleaned.length; r++) {
+            cleaned[r][targetCol] = r < maxNon ? 1 : "";
+        }
+    }
+
+    /* ────────────────── 5) 결과 반영 ────────────────── */
+    const final: (string | number | boolean | null)[][] = [newHeads, ...cleaned];
+    sheet.getRangeByIndexes(0, 0, final.length, final[0].length)
+        .setValues(final);
+}

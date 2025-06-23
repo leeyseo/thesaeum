@@ -1,0 +1,52 @@
+function main(workbook: ExcelScript.Workbook) {
+    const sheet = workbook.getActiveWorksheet();
+    const range = sheet.getUsedRange();
+    const values = range.getValues();
+
+    if (values.length < 2) return;
+
+    const header = values[0] as string[];
+    const data = values.slice(1);
+
+    // 레이어 열 인덱스 찾기
+    const layerCol = header.indexOf("레이어");
+    if (layerCol === -1) {
+        console.log("❌ '레이어' 열이 없습니다.");
+        return;
+    }
+
+    // 레이어 앞에 있는 모든 컬럼들 (데이터 대상 컬럼)
+    const baseCols = header.slice(0, layerCol);
+    const maxLayer = Math.max(...data.map(row => Number(row[layerCol])));
+
+    // 새 헤더 구성
+    let newHeader: string[] = [];
+    for (let i = 1; i <= maxLayer; i++) {
+        for (let col of baseCols) {
+            newHeader.push(`${col}_${i}`);
+        }
+    }
+    newHeader.push("레이어");
+
+    // 새 데이터 구성
+    let newData: (string | number)[][] = [];
+
+    for (let row of data) {
+        const layerNum = Number(row[layerCol]);
+        const newRow: (string | number)[] = [];
+
+        for (let i = 1; i <= maxLayer; i++) {
+            for (let c = 0; c < baseCols.length; c++) {
+                const val = (i === layerNum) ? row[c] : "Nan";
+                newRow.push(val);
+            }
+        }
+        newRow.push(layerNum); // 마지막에 레이어
+        newData.push(newRow);
+    }
+
+    // 결과 출력
+    const outputStart = sheet.getRange("A1");
+    const outputRange = sheet.getRangeByIndexes(0, 0, newData.length + 1, newHeader.length);
+    outputRange.setValues([newHeader, ...newData]);
+}
