@@ -1,82 +1,110 @@
 /**
- * ① 기존 아트보드 크기(폭·높이) 목록 저장
- * ② 아트보드 밖 디자인을 Bounding Box 단위로 병합
- * ③ 병합 결과가 기존 크기와 ±TOL 이내일 때만
- *      ─ 새 아트보드 생성 (+MARGIN)
- *      ─ 그 디자인을 matchedItems 에 추가
- * ④ 끝나면 matchedItems 만 선택 상태 유지
- * ES3 ExtendScript
+ * ① 현재 아트보드 크기(w·h) 목록 저장
+ * ② 화면에 보이는 pageItems 중
+ *      ↳ (자신·부모 레이어가 모두 unlocked & visible)
+ *      ↳ 어떤 아트보드에도 겹치지 않는 것만 수집
+ * ③ 겹치는 바운딩박스를 병합해 덩어리(rect) 목록 생성
+ * ④ 덩어리 크기가 기존 아트보드 크기와 ±TOL 이내면
+ *      ↳ 새 아트보드 추가 (+MARGIN)
+ * ⑤ 방금 채워진 디자인만 선택 상태 유지
  */
 (function () {
-  var MARGIN = 0;      // 새 아트보드 여백 pt
-  var TOL    = 2;       // 크기 허용 오차 pt
+  var TOL    = 10;   // 허용 오차(pt)
+  var MARGIN =  0;   // 새 아트보드 여백(pt)
 
+  /* ───────────── 0) 문서 검사 ───────────── */
   var doc = app.activeDocument;
-  if (!doc) { alert("문서가 없습니다."); return; }
+  if (!doc) { alert("열린 문서가 없습니다."); return; }
 
-  /* ── 1. 기존 아트보드 크기 목록 ── */
-  var ABs = [], ref = [];           // ref = [{w,h}]
-  for (var i=0;i<doc.artboards.length;i++){
-    var r = doc.artboards[i].artboardRect;          // [L,T,R,B]
-    ABs.push(r);
-    ref.push({ w: r[2]-r[0], h: r[1]-r[3] });
+  /* ───── 1) 기존 아트보드 크기 목록 ───── */
+  var ABRects = [];             // [L,T,R,B]
+  var refSize = [];             // [{w,h}, …]
+  for (var i = 0; i < doc.artboards.length; i++) {
+    var r = doc.artboards[i].artboardRect;
+    ABRects.push(r);
+    refSize.push({ w: r[2] - r[0], h: r[1] - r[3] });
   }
-  function sizeMatch(w,h){
-    for (var k=0;k<ref.length;k++)
-      if (Math.abs(w-ref[k].w)<=TOL && Math.abs(h-ref[k].h)<=TOL) return true;
+  function sizeMatch(w, h) {
+    for (var k = 0; k < refSize.length; k++) {
+      if (Math.abs(w - refSize[k].w) <= TOL &&
+          Math.abs(h - refSize[k].h) <= TOL) return true;
+    }
     return false;
   }
-  function intersects(a,b){
-    return !(a[2]<b[0]||a[0]>b[2]||a[1]<b[3]||a[3]>b[1]);
+  function intersects(a, b) {
+    return !(a[2] < b[0] || a[0] > b[2] || a[1] < b[3] || a[3] > b[1]);
   }
-  function merge(a,b){
-    return [Math.min(a[0],b[0]), Math.max(a[1],b[1]),
-            Math.max(a[2],b[2]), Math.min(a[3],b[3])];
-  }
-
-  /* ── 2. 아트보드 밖 디자인 수집 ── */
-  var rectPool=[], itemPool=[];
-  for (i=0;i<doc.pageItems.length;i++){
-    var it=doc.pageItems[i]; if(it.locked||it.hidden) continue;
-    var bb=it.visibleBounds, on=false;
-    for (var j=0;j<ABs.length;j++) if(intersects(bb,ABs[j])){ on=true; break; }
-    if(!on){ rectPool.push(bb); itemPool.push(it); }
-  }
-  // if(!rectPool.length){ alert("대지 밖 디자인이 없습니다."); return; }
-
-  /* ── 3. 겹침 병합 ── */
-  var groups=[];
-  while(rectPool.length){
-    var cur=rectPool.pop(), m=false;
-    for(i=0;i<groups.length;i++)
-      if(intersects(cur,groups[i])){ groups[i]=merge(cur,groups[i]); m=true; break; }
-    if(!m) groups.push(cur);
+  function mergeRect(a, b) {
+    return [ Math.min(a[0], b[0]), Math.max(a[1], b[1]),
+             Math.max(a[2], b[2]), Math.min(a[3], b[3]) ];
   }
 
-  /* ── 4. 크기 매칭 그룹만 아트보드 생성 ── */
-  var made=0, matchedSet={};                 // 객체 키를 ID 로 활용
-  for(i=0;i<groups.length;i++){
-    var g=groups[i], w=g[2]-g[0], h=g[1]-g[3];
-    if(!sizeMatch(w,h)) continue;            // 크기 불일치 → 건너뜀
+  /* ───── 2) ‘대지 밖 & 보이는’ 디자인 수집 ───── */
+  var rectPool = [], itemPool = [];
+  for (i = 0; i < doc.pageItems.length; i++) {
+    var it = doc.pageItems[i];
 
-    var L=g[0]-MARGIN, T=g[1]+MARGIN,
-        R=g[2]+MARGIN, B=g[3]-MARGIN;
-    doc.artboards.add([L,T,R,B]);            // 새 아트보드
-    made++;
+    /* 2-1) 자신 또는 부모 레이어가 잠김/숨김이면 건너뜀 */
+    if (it.locked || it.hidden) continue;
+    var lay = it.layer;
+    if (lay.locked || !lay.visible) continue;
 
-    /* 그룹 영역에 포함된 아이템 → matchedSet */
-    for (var p=0;p<itemPool.length;p++){
-      var bb=itemPool[p].visibleBounds;
-      if (bb[0]>=g[0]-0.1 && bb[2]<=g[2]+0.1 &&
-          bb[3]>=g[3]-0.1 && bb[1]<=g[1]+0.1)
-        matchedSet[itemPool[p].uuid || p]=itemPool[p]; // uuid가 없으면 인덱스
+    /* 2-2) 기존 아트보드와 겹치면 건너뜀 */
+    var bb = it.visibleBounds, onBoard = false;
+    for (var j = 0; j < ABRects.length; j++) {
+      if (intersects(bb, ABRects[j])) { onBoard = true; break; }
+    }
+    if (onBoard) continue;
+
+    /* ‘대지 밖’ & ‘수정 가능한’ 오브젝트만 저장 */
+    rectPool.push(bb);
+    itemPool.push(it);
+  }
+  if (!rectPool.length) { alert("대지 밖(그리고 보이는) 디자인이 없습니다."); return; }
+
+  /* ───── 3) 겹침 병합 → 덩어리(chunks) ───── */
+  var chunks = [];
+  while (rectPool.length) {
+    var cur = rectPool.pop(), merged = false;
+    for (i = 0; i < chunks.length; i++) {
+      if (intersects(cur, chunks[i])) {
+        chunks[i] = mergeRect(cur, chunks[i]);
+        merged = true; break;
+      }
+    }
+    if (!merged) chunks.push(cur);
+  }
+
+  /* ───── 4) 기준 크기와 맞는 덩어리만 아트보드 생성 ───── */
+  var added = 0, matchedSet = {};          // Object → 중복 방지
+  for (i = 0; i < chunks.length; i++) {
+    var g = chunks[i],
+        W = g[2] - g[0],
+        H = g[1] - g[3];
+
+    if (!sizeMatch(W, H)) continue;        // 폭·높이가 기준과 다르면 skip
+
+    var L = g[0] - MARGIN,
+        T = g[1] + MARGIN,
+        R = g[2] + MARGIN,
+        B = g[3] - MARGIN;
+    doc.artboards.add([L, T, R, B]);       // 새 아트보드 추가
+    added++;
+
+    /* 덩어리 안에 들어간 오브젝트 → matchedSet */
+    for (var p = 0; p < itemPool.length; p++) {
+      var bb = itemPool[p].visibleBounds;
+      if (bb[0] >= g[0]-0.1 && bb[2] <= g[2]+0.1 &&
+          bb[3] >= g[3]-0.1 && bb[1] <= g[1]+0.1)
+        matchedSet[itemPool[p].id] = itemPool[p];
     }
   }
 
-  /* ── 5. 최종 선택 = 매칭된 디자인만 ── */
-  var matched=[];
-  for (var key in matchedSet) matched.push(matchedSet[key]);
-  doc.selection = matched;
+  /* ───── 5) 선택 상태 정리 ───── */
+  var sel = [];
+  for (var key in matchedSet) sel.push(matchedSet[key]);
+  doc.selection = sel;           // 숨김/잠김 오브젝트가 없으므로 오류 없음
 
-  // alert("새 아트보드: "+made+"개\n선택된 디자인(크기 매칭): "+matched.length+"개");
+  alert("➕ 새 아트보드: " + added +
+        "개\n✅ 선택된 디자인: " + sel.length + "개");
 })();

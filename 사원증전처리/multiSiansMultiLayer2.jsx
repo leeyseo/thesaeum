@@ -4,13 +4,11 @@
   var doc = app.activeDocument, DS = doc.dataSets;
   if (DS.length === 0) { alert("데이터셋이 없습니다."); return; }
 
-  // 🔓 모든 레이어 표시 + 잠금 해제
   for (var i = 0; i < doc.layers.length; i++) {
     doc.layers[i].visible = true;
     doc.layers[i].locked = false;
   }
 
-  // 💡 이미지 변수 목록 수집 + 레이어 변수 추적
   var imageVars = {}, layVar = null, varPairs = [];
   for (i = 0; i < doc.variables.length; i++) {
     var nm = doc.variables[i].name;
@@ -25,7 +23,6 @@
   }
   if (!layVar) { alert("❌ '레이어' 변수를 찾을 수 없습니다."); return; }
 
-  // 🔄 초기화: 아트보드 하나 남기고 제거
   app.executeMenuCommand("unlockAll");
   app.executeMenuCommand("showAll");
   while (doc.artboards.length > 1) doc.artboards[1].remove();
@@ -36,14 +33,12 @@
   AB0 = [ AB0[0]+SHIFT_X, AB0[1]+SHIFT_Y, AB0[2]+SHIFT_X, AB0[3]+SHIFT_Y ];
   doc.artboards[0].artboardRect = AB0;
 
-  // 🔃 출력 레이어 생성
   try { doc.layers.getByName("출력_디자인").remove(); } catch(e){}
   var outLayer = doc.layers.add(); outLayer.name = "출력_디자인";
 
   for (var d = 0; d < DS.length; d++) {
     DS[d].display(); $.sleep(30);
 
-    // 🎯 현재 데이터셋의 레이어값 추출
     var gIdx = null;
     try {
       var dv = DS[d].getVariableValue ? DS[d].getVariableValue(layVar) : null;
@@ -62,26 +57,30 @@
         } catch(_){}
       }
     }
-    if (!gIdx) continue;
 
-    // 🖼️ 이미지 바인딩 (CSV의 절대경로 그대로 사용)
+    if (!gIdx) {
+      alert("DS" + (d + 1) + " : 사용할 레이어를 판단할 수 없습니다.");
+      continue;
+    }
+
     var imageVarName = "이미지_" + gIdx;
     var imageVar = imageVars[imageVarName];
-    if (!imageVar || imageVar.pageItems.length === 0 || imageVar.pageItems[0].typename !== "PlacedItem") {
-      $.writeln("⚠️ 이미지 변수 없음 또는 잘못된 바인딩: " + imageVarName);
-    } else {
+    if (imageVar && imageVar.pageItems.length && imageVar.pageItems[0].typename === "PlacedItem") {
       var item = imageVar.pageItems[0];
       try {
         var absPath = decodeURI(item.file.fullName);
         var newFile = File(absPath);
-        if (newFile.exists) item.file = newFile;
-        else $.writeln("❌ 이미지 파일 없음: " + absPath);
+        if (newFile.exists) {
+          item.file = newFile;
+          $.writeln("✅ 이미지 재연결 성공: " + absPath);
+        } else {
+          $.writeln("❌ 이미지 파일 없음: " + absPath);
+        }
       } catch(e) {
         $.writeln("❌ 이미지 연결 실패 (DS" + (d+1) + "): " + e);
       }
     }
 
-    // 🧩 템플릿 복제
     var srcLayer;
     try { srcLayer = doc.layers.getByName("Artboard_" + gIdx); }
     catch(_) { continue; }
@@ -89,7 +88,13 @@
     var row = d % PER_COL, col = Math.floor(d / PER_COL);
     var dx = col * (AB_W + GAP), dy = row * (AB_H + GAP);
     var rect = [AB0[0]+dx, AB0[1]-dy, AB0[2]+dx, AB0[3]-dy];
-    var abIdx = (d === 0) ? 0 : doc.artboards.add(rect).index;
+    var abIdx;
+    if (d === 0) {
+      abIdx = 0;
+    } else {
+      doc.artboards.add(rect);
+      abIdx = doc.artboards.length - 1;
+    }
 
     var grp = outLayer.groupItems.add();
     grp.name = "DS" + (d+1) + "_" + gIdx;
@@ -98,13 +103,20 @@
       if (!it.locked && !it.hidden)
         it.duplicate(grp, ElementPlacement.PLACEATEND);
     }
-    grp.translate(SHIFT_X + dx, SHIFT_Y - dy);
-    try { grp.artboard = abIdx; } catch(_){}
+
+    // ✅ 정확한 위치 보정
+    var bounds = grp.visibleBounds;
+    var designLeft = bounds[0], designTop = bounds[1];
+    var abRect = doc.artboards[abIdx].artboardRect;
+    var abLeft = abRect[0], abTop = abRect[1];
+    var dx2 = abLeft - designLeft;
+    var dy2 = abTop - designTop;
+    grp.position = [grp.position[0] + dx2, grp.position[1] + dy2];
+
+    try { grp.artboard = abIdx; } catch(_) {}
   }
 
-  DS[0].display(); // 복귀
-
-  // 👁️ '출력_디자인'만 보이게, 나머지 눈 감기
+  DS[0].display();
   for (var i = 0; i < doc.layers.length; i++) {
     var lay = doc.layers[i];
     lay.visible = (lay.name === "출력_디자인");

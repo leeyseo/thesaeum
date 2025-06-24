@@ -4,40 +4,56 @@
     return;
   }
 
-  var doc       = app.activeDocument;
-  var noStroke  = new NoColor();        // 투명색
-  var abCount   = doc.artboards.length;
-  var changed   = 0;
-  var oldIndex  = doc.artboards.getActiveArtboardIndex(); // 복원용
+  var doc = app.activeDocument;
+  var noStroke = new NoColor();
+  var count = 0;
 
-  /* ───────────────── 대지별 처리 ───────────────── */
-  for (var a = 0; a < abCount; a++) {
-    doc.selection = null;                       // 선택 초기화
-    doc.artboards.setActiveArtboardIndex(a);    // 대지 활성
-    doc.selectObjectsOnActiveArtboard();        // 해당 대지 객체 선택
+  /* ───────── 모든 오브젝트 순회 (잠김/숨김 제외) ───────── */
+  function traverseVisible(layer) {
+    if (!layer.visible) return;
+    for (var i = 0; i < layer.pageItems.length; i++) {
+      processItem(layer.pageItems[i]);
+    }
 
-    var sel = doc.selection;
-    for (var i = 0; i < sel.length; i++) recurse(sel[i]);
+    // 하위 레이어도 포함
+    for (var j = 0; j < layer.layers.length; j++) {
+      traverseVisible(layer.layers[j]);
+    }
   }
 
-  /* ───────────────── 복원 및 완료 알림 ───────────────── */
-  doc.artboards.setActiveArtboardIndex(oldIndex);
-  alert("외곽선 투명색 적용: " + changed + "개 완료");
+  function processItem(item) {
+    if (!item || item.locked || item.hidden) return;
+    if (item.layer && item.layer.name.indexOf("칼선") !== -1) return;
 
-  /* ──────────── 그룹/복합패스 재귀 처리 함수 ──────────── */
-  function recurse(item) {
-    if (item.locked || item.hidden) return;          // 잠김/숨김 건너뜀
-    if (item.layer && item.layer.name.indexOf("칼선") !== -1) return; // ‘칼선’ 레이어 건너뜀
+    // 그룹인 경우 안쪽으로 순회
+    if (item.typename === "GroupItem") {
+      for (var i = 0; i < item.pageItems.length; i++) {
+        processItem(item.pageItems[i]);
+      }
+    }
 
-    if (item.typename === "GroupItem" || item.typename === "CompoundPathItem") {
-      for (var j = 0; j < item.pageItems.length; j++) recurse(item.pageItems[j]);
-    } else {
+    // 복합패스는 pathItems 사용
+    else if (item.typename === "CompoundPathItem") {
+      for (var j = 0; j < item.pathItems.length; j++) {
+        processItem(item.pathItems[j]);
+      }
+    }
+
+    // 기본 객체 처리
+    else {
       try {
         if (item.stroked) {
           item.strokeColor = noStroke;
-          changed++;
+          count++;
         }
-      } catch (e) { /* 일부 항목은 stroked 속성이 없음 */ }
+      } catch (e) { /* 일부는 stroke 속성 없음 */ }
     }
   }
+
+  /* ───────── 전체 레이어 탐색 시작 ───────── */
+  for (var i = 0; i < doc.layers.length; i++) {
+    traverseVisible(doc.layers[i]);
+  }
+
+  // alert("외곽선 투명 처리 완료: " + count + "개");
 })();
