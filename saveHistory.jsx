@@ -7,33 +7,36 @@
   var doc = app.activeDocument;
 
   // ── 사용자 입력 ──
-  var userName = prompt("저장할 이름을 입력하세요 (예: 홍길동):", "");
-  if (!userName) return;
+  var inputText = prompt("저장용 전체 이름을 입력하세요:\n(예: UV 명찰_70x25_골드_옷핀+집게_재제작_정근진_4_20250626-0000190)", "");
+  if (!inputText) return;
 
-  // ── 폴더 생성 ──
-  var baseFolder = new Folder(Folder.desktop + "/작업물");
+  var matches = inputText.match(/_([0-9]{8}-[0-9]{7})$/);
+  if (!matches || matches.length < 2) {
+    alert("❌ 올바른 형식이 아닙니다.\n마지막에 '_20250626-0000190' 형식의 문자열이 필요합니다.");
+    return;
+  }
+
+  var folderName = matches[1];     // 예: 20250626-0000190
+  var baseName = inputText;        // 파일 이름 원형
+
+  // ── 저장 폴더 생성 ──
+  var baseFolder = new Folder("C:/work");
   if (!baseFolder.exists) baseFolder.create();
 
-  var docName = doc.name.replace(/\.[^\.]+$/, "");  // 확장자 제거
-  var projFolder = new Folder(baseFolder.fsName + "/" + docName);
+  var projFolder = new Folder(baseFolder.fsName + "/" + folderName);
   if (!projFolder.exists) projFolder.create();
 
-  // ── 기존 파일명 조사 ──
-  var maxIndex = 0;
-  var files = projFolder.getFiles("*.ai");
-  for (var i = 0; i < files.length; i++) {
-    var fname = decodeURI(files[i].name);
-    var match = fname.match(new RegExp("^" + userName + "_(\\d+)\\.ai$"));
-    if (match) {
-      var num = parseInt(match[1]);
-      if (!isNaN(num) && num > maxIndex) maxIndex = num;
-    }
-  }
-  var nextIndex = maxIndex + 1;
-  var finalName = userName + "_" + nextIndex;
-
-  // ── 저장 경로 ──
+  // ── 파일명 중복 체크 및 확정 ──
+  var index = 0;
+  var finalName = baseName;
   var aiFile = new File(projFolder.fsName + "/" + finalName + ".ai");
+
+  while (aiFile.exists) {
+    index++;
+    finalName = baseName + "_" + index;
+    aiFile = new File(projFolder.fsName + "/" + finalName + ".ai");
+  }
+
   var jpgFile = new File(projFolder.fsName + "/" + finalName + ".jpg");
 
   // ── JPG 내보내기 ──
@@ -60,6 +63,6 @@
 
   doc.saveAs(aiFile, aiOptions);
 
-  alert("✅ 저장 완료:\n" + finalName + ".ai & .jpg");
+  alert("✅ 저장 완료:\n" + folderName + " 폴더\n→ " + finalName + ".ai & .jpg");
 
-})();
+})(); 
