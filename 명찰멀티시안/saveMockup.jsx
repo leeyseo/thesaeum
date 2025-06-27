@@ -6,61 +6,78 @@
 
   var doc = app.activeDocument;
 
-  /* ───────────────── 사용자 입력 ───────────────── */
-  var inputText = prompt(
-    "저장용 전체 이름을 입력하세요:\n(예: UV 명찰_70x25_골드_옷핀+집게_재제작_정근진_4_20250626-0000190)",
-    ""
-  );
+  // ───────── 사용자 입력 ─────────
+  var inputText = prompt("저장용 전체 이름을 입력하세요:\n(예: 엣지 명찰_70x20_골드_자석3구_김은영_15_20250627-0000182)", "");
   if (!inputText) return;
 
-  /* 날짜-번호(폴더명) 추출 */
-  var mDate = inputText.match(/_([0-9]{8}-[0-9]{7})$/);
-  if (!mDate) {
+  // 🔄 공백을 하이픈으로 치환
+  var baseInput = inputText.replace(/ /g, "-");
+
+  // ───────── 날짜-번호 추출 ─────────
+  var m = baseInput.match(/_([0-9]{8}-[0-9]{7})$/);
+  if (!m) {
     alert("❌ '_날짜-번호' 형식을 찾을 수 없습니다.");
     return;
   }
-  var folderName = mDate[1];
+  var folderName = m[1];
 
-  /* 배경 이미지 키 추출(70x25_골드 등) */
-  var mKey = inputText.match(/^.*?_([^_]+_[^_]+)/);
-  if (!mKey) {
+  // ───────── 배경 키 추출 ─────────
+  var keyMatch = baseInput.match(/^.*?_([^_]+_[^_]+)/);
+  if (!keyMatch) {
     alert("❌ 배경 이미지 키를 추출할 수 없습니다.");
     return;
   }
-  var imageKey = mKey[1];
+  var imageKey = keyMatch[1];
   var bgImagePath = new File("C:/work/img/" + imageKey + ".png");
   if (!bgImagePath.exists) {
     alert("❌ 배경 이미지가 없습니다:\n" + bgImagePath.fsName);
     return;
   }
 
-  /* ───────────────── 폴더 준비 ───────────────── */
-  var baseFolder = new Folder("C:/work");
-  if (!baseFolder.exists) baseFolder.create();
+  // ───────── 저장 폴더 준비 ─────────
+  var jpgFolder = new Folder("C:/work/" + folderName + "/jpg");
+  if (!jpgFolder.exists) jpgFolder.create();
 
-  var projFolder = new Folder(baseFolder.fsName + "/" + folderName);
-  if (!projFolder.exists) projFolder.create();
-
-  var baseName = inputText;        // 파일 이름 원형
-
-  // ── 파일명 중복 체크 및 확정 ──
-  var index = 0;
-  var finalName = baseName;
-  var aiFile = new File(projFolder.fsName + "/" + finalName + ".ai");
-
-  while (aiFile.exists) {
-    index++;
-    finalName = baseName + "_" + index;
-    aiFile = new File(projFolder.fsName + "/" + finalName + ".ai");
+  // ───────── 시안전송용 파일명 중복 체크 ─────────
+  var siAnBase = baseInput + "_시안전송용";
+  var siAnFile = new File(jpgFolder.fsName + "/" + siAnBase + ".jpg");
+  var siAnIndex = 0;
+  while (siAnFile.exists) {
+    siAnIndex++;
+    siAnFile = new File(jpgFolder.fsName + "/" + siAnBase + "_" + siAnIndex + ".jpg");
   }
 
-  var jpgFile = new File(projFolder.fsName + "/" + finalName + ".jpg");
+  // ───────── 확정형 파일명 중복 체크 ─────────
+  var hwakBase = baseInput + "_확정형";
+  var hwakFile = new File(jpgFolder.fsName + "/" + hwakBase + ".jpg");
+  var hwakIndex = 0;
+  while (hwakFile.exists) {
+    hwakIndex++;
+    hwakFile = new File(jpgFolder.fsName + "/" + hwakBase + "_" + hwakIndex + ".jpg");
+  }
 
-  /* ───────────────── 시안(대지 디자인) PNG(투명) 임시 추출 ───────────────── */
-  var tempPng = new File(Folder.temp + "/__temp_fg__.png");
+  // ───────── 첫 번째 아트보드 배경 제거 후 PNG 추출 ─────────
+  doc.artboards.setActiveArtboardIndex(0);
   app.executeMenuCommand("deselectall");
   doc.selectObjectsOnActiveArtboard();
 
+  var abRect = doc.artboards[0].artboardRect;
+  var abW = abRect[2] - abRect[0];
+  var abH = abRect[1] - abRect[3];
+  var selection = doc.selection;
+
+  for (var i = 0; i < selection.length; i++) {
+    var it = selection[i];
+    if (it.typename === "PathItem" && it.filled) {
+      var gb = it.geometricBounds;
+      var w = gb[2] - gb[0], h = gb[1] - gb[3];
+      var nearW = Math.abs(w - abW) <= Math.max(10, abW * 0.02);
+      var nearH = Math.abs(h - abH) <= Math.max(10, abH * 0.02);
+      if (nearW && nearH) it.fillColor = new NoColor();
+    }
+  }
+
+  var tempPng = new File(Folder.temp + "/__temp_fg__.png");
   var pngOpts = new ExportOptionsPNG24();
   pngOpts.transparency      = true;
   pngOpts.antiAliasing      = true;
@@ -69,45 +86,42 @@
   pngOpts.verticalScale     = 300;
   doc.exportFile(tempPng, ExportType.PNG24, pngOpts);
 
-  /* ───────────────── 새 문서에 배경 + 시안 배치 ───────────────── */
+  // ───────── 시안전송용 JPG (합성본) ─────────
   var newDoc = app.documents.add(DocumentColorSpace.RGB, 2000, 1000);
   var bg = newDoc.placedItems.add(); bg.file = bgImagePath;
   var fg = newDoc.placedItems.add(); fg.file = tempPng;
-  app.redraw();                              // 파일 크기 확정
+  app.redraw();
 
   bg.position = [0, bg.height];
   var W = bg.width, H = bg.height;
   newDoc.artboards[0].artboardRect = [0, H, W, 0];
 
-  /* 시안 확대(배경 너비의 60%) */
-  var targetW  = W * 0.6;
+  var targetW = W * 0.6;
   var scalePct = (targetW / fg.width) * 100;
   fg.resize(scalePct, scalePct);
-
-  /* 시안 중앙 배치 */
   fg.position = [(W - fg.width) / 2, H - (H - fg.height) / 2];
 
-  /* ───────────────── JPG 저장(600 dpi) ───────────────── */
   var jpgOpts = new ExportOptionsJPEG();
-  jpgOpts.qualitySetting  = 100;
-  jpgOpts.resolution      = 600;
-  jpgOpts.horizontalScale = 100;
-  jpgOpts.verticalScale   = 100;
-  jpgOpts.antiAliasing    = true;
-  jpgOpts.optimized       = true;
-  jpgOpts.artBoardClipping = true;
-  newDoc.exportFile(jpgFile, ExportType.JPEG, jpgOpts);
+  jpgOpts.qualitySetting    = 100;
+  jpgOpts.resolution        = 600;
+  jpgOpts.horizontalScale   = 100;
+  jpgOpts.verticalScale     = 100;
+  jpgOpts.antiAliasing      = true;
+  jpgOpts.optimized         = true;
+  jpgOpts.artBoardClipping  = true;
 
+  newDoc.exportFile(siAnFile, ExportType.JPEG, jpgOpts);
   newDoc.close(SaveOptions.DONOTSAVECHANGES);
   tempPng.remove();
 
-  /* ───────────────── AI 저장 ───────────────── */
-  var aiOpts = new IllustratorSaveOptions();
-  aiOpts.compatibility  = Compatibility.ILLUSTRATOR17;
-  aiOpts.flattenOutput  = OutputFlattening.PRESERVEAPPEARANCE;
-  doc.saveAs(aiFile, aiOpts);
+  // ───────── 확정형 JPG (원본 아트보드 그대로) ─────────
+  doc.artboards.setActiveArtboardIndex(0);
+  app.executeMenuCommand("deselectall");
+  doc.selectObjectsOnActiveArtboard();
+  doc.exportFile(hwakFile, ExportType.JPEG, jpgOpts);
 
-  alert("✅ 저장 완료:\n" +
-        folderName + " 폴더\n→ " +
-        finalName + ".ai / .jpg");
+  // ───────── 완료 알림 ─────────
+  alert("✅ JPG 2종 저장 완료:\n" +
+        "☑ 시안전송용: " + decodeURIComponent(siAnFile.name) + "\n" +
+        "☑ 확정형: " + decodeURIComponent(hwakFile.name));
 })();
