@@ -79,5 +79,5 @@
   doc.saveAs(file2, pdfOpts);
 
   // ✅ 완료 메시지
-  alert("✅ PDF 저장 완료:\n1) " + file1.fsName + "\n2) " + file2.fsName);
+  // alert("✅ PDF 저장 완료:\n1) " + file1.fsName + "\n2) " + file2.fsName);
 })();

@@ -105,6 +105,6 @@
   for (var key in matchedSet) sel.push(matchedSet[key]);
   doc.selection = sel;           // 숨김/잠김 오브젝트가 없으므로 오류 없음
 
-  alert("➕ 새 아트보드: " + added +
-        "개\n✅ 선택된 디자인: " + sel.length + "개");
+  // alert("➕ 새 아트보드: " + added +
+  //       "개\n✅ 선택된 디자인: " + sel.length + "개");
 })();

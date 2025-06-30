@@ -48,7 +48,7 @@
   }
 
   // 변수 생성
-  var baseNames = ["이름", "직책", "상호명", "레이어"];
+  var baseNames = ["이름_1", "직책_1", "자료_1", "레이어"];
   var layerCount = doc.layers.length;
   var abCount = doc.artboards.length;
   var maxCount = Math.max(layerCount, abCount);

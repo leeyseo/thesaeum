@@ -63,6 +63,6 @@
 
   doc.saveAs(aiFile, aiOptions);
 
-  alert("✅ 저장 완료:\n" + folderName + " 폴더\n→ " + finalName + ".ai & .jpg");
+  // alert("✅ 저장 완료:\n" + folderName + " 폴더\n→ " + finalName + ".ai & .jpg");
 
 })(); 

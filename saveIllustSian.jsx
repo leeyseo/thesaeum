@@ -41,5 +41,5 @@
 
   doc.saveAs(aiFile, opts);
 
-  alert("✅ AI 저장 완료:\n" + aiFile.fsName);
+  // alert("✅ AI 저장 완료:\n" + aiFile.fsName);
 })();

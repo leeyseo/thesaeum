@@ -14,9 +14,9 @@
   doc.selectObjectsOnActiveArtboard();
 
   // 확인 메시지
-  if (doc.selection.length > 0) {
-    alert("✅ 첫 번째 아트보드의 오브젝트가 선택되었습니다.\n선택 수: " + doc.selection.length);
-  } else {
-    alert("❌ 첫 번째 아트보드에 선택할 오브젝트가 없습니다.");
-  }
+  // if (doc.selection.length > 0) {
+  //   alert("✅ 첫 번째 아트보드의 오브젝트가 선택되었습니다.\n선택 수: " + doc.selection.length);
+  // } else {
+  //   alert("❌ 첫 번째 아트보드에 선택할 오브젝트가 없습니다.");
+  // }
 })();
