@@ -1,63 +1,77 @@
+// #target "Illustrator"
+
 (function () {
-  if (app.documents.length === 0) {
-    alert("열린 문서가 없습니다.");
-    return;
-  }
+  if (app.documents.length === 0) { alert("열린 문서가 없습니다."); return; }
 
-  var doc = app.activeDocument;
+  var doc     = app.activeDocument;
   var abCount = doc.artboards.length;
-  var white = new RGBColor();
-  white.red = 255; white.green = 255; white.blue = 255;
 
-  for (var i = 0; i < abCount; i++) {
-    var ab = doc.artboards[i];
-    var abRect = ab.artboardRect; // [L, T, R, B]
+  /* ── 0. 맨 아래 레이어 확보 ── */
+  var bottomLayer           = doc.layers[doc.layers.length - 1];
+  var restoreLock  = bottomLayer.locked;
+  var restoreHide  = !bottomLayer.visible;
+  if (restoreLock) bottomLayer.locked = false;
+  if (restoreHide) bottomLayer.visible = true;
 
-    var abLeft   = abRect[0];
-    var abTop    = abRect[1];
-    var abWidth  = abRect[2] - abRect[0];
-    var abHeight = abRect[1] - abRect[3];
+  /* 흰색 객체 */
+  var white = new RGBColor(); white.red = white.green = white.blue = 255;
+
+  /* ── 1. 각 아트보드마다 배경 처리 ── */
+  for (var ai = 0; ai < abCount; ai++) {
+
+    var abRect = doc.artboards[ai].artboardRect; // [L,T,R,B]
+    var abLeft = abRect[0], abTop = abRect[1],
+        abW    = abRect[2] - abRect[0],
+        abH    = abRect[1] - abRect[3];
 
     var found = false;
 
-    // 모든 객체 검사해서 이 아트보드 영역에 정확히 맞는 배경 찾기
+    /* 1-1) 배경 후보 검색 */
     for (var j = 0; j < doc.pageItems.length; j++) {
-      var item = doc.pageItems[j];
-      if (item.locked || item.hidden) continue;
-      if (!item.visibleBounds) continue;
+      var it = doc.pageItems[j];
+      if (it.locked || it.hidden) continue;
 
-      var b = item.visibleBounds; // [L, T, R, B]
-      var w = b[2] - b[0];
-      var h = b[1] - b[3];
+      var vb = it.visibleBounds;               // [L,T,R,B]
+      var w  = vb[2] - vb[0], h = vb[1] - vb[3];
 
-      var isSameSize = Math.abs(w - abWidth) < 1 && Math.abs(h - abHeight) < 1;
-      var isSamePos  = Math.abs(b[0] - abLeft) < 1 && Math.abs(b[1] - abTop) < 1;
+      var sameSize = Math.abs(w - abW) < 1 && Math.abs(h - abH) < 1;
+      var samePos  = Math.abs(vb[0] - abLeft) < 1 && Math.abs(vb[1] - abTop) < 1;
+      if (!sameSize || !samePos) continue;     // 아트보드와 정확히 일치한 것만
 
-      if (isSameSize && isSamePos && item.filled) {
-        // 배경 후보 발견 → 색이 투명한 경우만 변경
-        if (item.fillColor.typename === "NoColor") {
-          item.fillColor = white;
-          item.zOrder(ZOrderMethod.SENDTOBACK);
-          found = true;
-          break;
-        } else {
-          // 이미 흰색 또는 컬러일 수 있음 → 그냥 맨 뒤로만 보냄
-          item.zOrder(ZOrderMethod.SENDTOBACK);
-          found = true;
+      /* ── (A) 이미 흰색이면 그냥 통과 ── */
+      if (it.filled && it.fillColor.typename === "RGBColor") {
+        var fc = it.fillColor;
+        if (fc.red === 255 && fc.green === 255 && fc.blue === 255) {
+          found = true;        // 흰 배경 존재 → 추가 작업 없음
           break;
         }
       }
+
+      /* ── (B) 투명 → 흰색 변환 ── */
+      if (!it.filled || it.fillColor.typename === "NoColor") {
+        it.filled    = true;
+        it.fillColor = white;
+      }
+
+      /* ── (C) 흰색이 아니면 색은 유지하되 뒤로 보내기 ── */
+      it.move(bottomLayer, ElementPlacement.PLACEATEND);
+      it.zOrder(ZOrderMethod.SENDTOBACK);
+      found = true;
+      break;
     }
 
-    // 없으면 새로 만들어서 배경 추가
+    /* 1-2) 후보가 없으면 새 사각형 생성 */
     if (!found) {
-      var rect = doc.pathItems.rectangle(
-        abTop, abLeft, abWidth, abHeight
-      );
-      rect.fillColor = white;
-      rect.stroked = false;
-      rect.zOrder(ZOrderMethod.SENDTOBACK);
+      var bg = bottomLayer.pathItems.rectangle(abTop, abLeft, abW, abH);
+      bg.fillColor = white;
+      bg.stroked   = false;
+      bg.zOrder(ZOrderMethod.SENDTOBACK);
     }
   }
 
+  /* ── 2. 레이어 상태 복구 ── */
+  if (restoreLock) bottomLayer.locked  = true;
+  if (restoreHide) bottomLayer.visible = false;
+
+  // alert("✔ 투명 배경을 흰색으로 변환했고, 이미 흰 배경은 그대로 두었습니다.");
 })();
