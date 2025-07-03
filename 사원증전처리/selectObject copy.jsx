@@ -1,51 +1,24 @@
 /**
- * 모든 아트보드와 교차(전부 또는 일부)하는 페이지 아이템을 선택
+ * ▶ 현재 문서의 “모든” 오브젝트 선택
+ *    1) 잠금 해제 · 숨김 해제
+ *    2) pageItems 전체를 selection 에 넣기
  */
 (function () {
-  var doc = app.activeDocument;
-  if (!doc) {
+  if (app.documents.length === 0) {
     alert("열린 문서가 없습니다!");
     return;
   }
 
-  // ── 문서의 모든 아트보드 경계 수집 ──
-  var ABs = []; // 각 원소: [L, T, R, B]
-  for (var i = 0; i < doc.artboards.length; i++) {
-    ABs.push(doc.artboards[i].artboardRect);
+  var doc = app.activeDocument;
+
+  /* 1) 전부 표시·잠금 해제 (메뉴 명령 그대로 호출) */
+  app.executeMenuCommand("unlockAll");
+  app.executeMenuCommand("showAll");
+
+  /* 2) 전체 페이지 아이템을 selection 에 할당 */
+  var all = [];
+  for (var i = 0; i < doc.pageItems.length; i++) {
+    all.push(doc.pageItems[i]);
   }
-
-  // ── 선택 대상 누적 ──
-  var sel = [];
-
-  // 문서의 모든 페이지 아이템 순회
-  for (var k = 0; k < doc.pageItems.length; k++) {
-    var it = doc.pageItems[k];
-
-    // 오브젝트 자체나 레이어가 잠기거나 숨김이면 무시
-    if (
-      it.locked || it.hidden ||
-      (it.layer && (it.layer.locked || !it.layer.visible))
-    ) continue;
-
-    var g = it.geometricBounds; // [L, T, R, B]
-
-    // 하나라도 아트보드와 교차하면 선택 목록에 추가
-    for (var j = 0; j < ABs.length; j++) {
-      var AB = ABs[j];
-
-      var intersects =
-        g[2] >= AB[0] &&   // item.right  ≥ ab.left
-        g[0] <= AB[2] &&   // item.left   ≤ ab.right
-        g[1] >= AB[3] &&   // item.top    ≥ ab.bottom
-        g[3] <= AB[1];     // item.bottom ≤ ab.top
-
-      if (intersects) {
-        sel.push(it);
-        break; // 이미 선택됐으므로 다음 아이템으로
-      }
-    }
-  }
-
-  // ── Illustrator selection 반영 ──
-  doc.selection = sel;
+  doc.selection = all;        // = “Ctrl/Cmd + A” 와 동일 효과
 })();

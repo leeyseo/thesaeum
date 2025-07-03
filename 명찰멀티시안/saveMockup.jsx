@@ -30,9 +30,10 @@
   if (!mockBg.exists) { alert("❌ 목업 이미지 없음:\n" + mockBg.fsName); return; }
 
   /* 출력 폴더 */
-  var jpgDir = new Folder("C:/work/" + orderNo + "/jpg"); if (!jpgDir.exists) jpgDir.create();
-  function uniq(name){var f=new File(jpgDir+"/"+name+".jpg"),n=0;
-    while(f.exists){n++;f=new File(jpgDir+"/"+name+"_"+n+".jpg");}return f;}
+  var outDir = new Folder("C:/work/" + orderNo);
+  if (!outDir.exists) outDir.create();
+  function uniq(name){var f=new File(outDir+"/"+name+".jpg"),n=0;
+    while(f.exists){n++;f=new File(outDir+"/"+name+"_"+n+".jpg");}return f;}
 
   var siAnFile = uniq(basePath + "_시안전송용");
   var hwakFile = uniq(basePath + "_확정형");
@@ -102,14 +103,103 @@
   composite(bgImg,tmpPng,siAnFile,1,0.1,null,null,null,null,"GmarketSans");
 
   /* 5) 확정형 */
-  doc.exportFile(hwakFile,ExportType.JPEG,jOpt);
+
+
+  var finalName = "홍길동";
+  var found = false;
+  var oldContent = "";
+
+  // 새 문서 만들기 (원본 아트보드와 같은 크기)
+  var ab = doc.artboards[0].artboardRect;
+  var AW = ab[2] - ab[0], AH = ab[1] - ab[3];
+  var tempDoc = app.documents.add(DocumentColorSpace.RGB, AW, AH);
+  tempDoc.artboards[0].artboardRect = [0, AH, AW, 0];
+
+  // ✅ 복사 전 활성화
+  doc.activate();
+  doc.artboards.setActiveArtboardIndex(0);
+  app.executeMenuCommand("deselectall");
+  doc.selectObjectsOnActiveArtboard();
+  app.copy();
+
+  // ✅ 붙여넣기 전 활성화
+  tempDoc.activate();
+  app.paste();
+
+  // 🔄 '이름' 포함된 변수만 치환
+  function replaceNameIn(container) {
+    for (var i = 0; i < container.pageItems.length; i++) {
+      var item = container.pageItems[i];
+      if (item.typename === "GroupItem") {
+        replaceNameIn(item);
+      } else if (item.typename === "TextFrame") {
+        if (item.name && item.name.indexOf("이름") !== -1) {
+          found = true;
+          oldContent = item.contents;
+          item.contents = finalName;
+        }
+      }
+    }
+  }
+  replaceNameIn(tempDoc);
+
+  // JPG 저장
+  tempDoc.exportFile(hwakFile, ExportType.JPEG, jOpt);
+  tempDoc.close(SaveOptions.DONOTSAVECHANGES);
+  // // 결과 처리
+  // if (!found) {
+  //   alert("❌ '이름'이라는 변수명을 가진 텍스트 요소를 찾을 수 없습니다.");
+  // } else {
+  //   alert("✅ 기존 이름 텍스트: " + oldContent + "\n→ 변경됨: " + finalName);
+  //   doc.exportFile(hwakFile, ExportType.JPEG, jOpt);
+  // }
 
   /* 6) 시안전송목업용 (주문번호 & 고객명) */
-  composite(mockBg,siAnFile,mockFile,
-            0.6,0.1,
-            orderNo,[340,165],
-            customer,[340,80],
-            "GmarketSans");
+
+  // 🧾 사용자 입력 받기
+  var userText = prompt("시안전송 목업 JPG에 넣을 텍스트를 입력하세요:", "");
+  if (userText === null) userText = ""; // 취소해도 계속 진행
+
+  // 📄 새 문서에 배경 + 전경 디자인 불러오기
+  var nd = app.documents.add(DocumentColorSpace.RGB, 2000, 1000);
+  var b = nd.placedItems.add();
+  var f = nd.placedItems.add();
+  b.file = mockBg;
+  f.file = siAnFile;
+  app.redraw();
+
+  b.position = [0, b.height];
+  var W = b.width, H = b.height;
+  nd.artboards[0].artboardRect = [0, H, W, 0];
+
+  var sPct = (W * 0.6 / f.width) * 100;
+  f.resize(sPct, sPct);
+  var spare = H - f.height;
+  f.position = [(W - f.width)/2, H - (spare/2) - (spare * 0.1)];
+
+  // 🔴 텍스트 영역 추가 (줄바꿈 지원)
+  if (userText !== "") {
+    var tf = nd.textFrames.areaText(nd.pathItems.rectangle(H - 900, 260, 1000, 120)); // (top, left, width, height)
+    tf.contents = userText;
+
+    var red = new RGBColor();
+    red.red = 255; red.green = 0; red.blue = 0;
+
+    tf.textRange.characterAttributes.fillColor = red;
+    tf.textRange.characterAttributes.size = 36;
+
+    try {
+      tf.textRange.characterAttributes.textFont = app.textFonts.getByName("GmarketSans");
+    } catch (e) {
+      tf.textRange.characterAttributes.textFont = app.textFonts[0];
+    }
+
+    tf.paragraphs[0].paragraphAttributes.justification = Justification.CENTER;
+  }
+
+  // 저장
+  nd.exportFile(mockFile, ExportType.JPEG, jOpt);
+  nd.close(SaveOptions.DONOTSAVECHANGES);
 
   tmpPng.remove();
   alert("✅ JPG 3종 저장 완료:\n• "+siAnFile.name+"\n• "+hwakFile.name+"\n• "+mockFile.name);
