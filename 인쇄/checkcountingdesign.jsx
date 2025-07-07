@@ -28,16 +28,23 @@
   // 🔸 전체 대지 수
   var abCount = doc.artboards.length;
 
+  // 🔹 ① 새 코드 추가 ――――――――――――――――――――――
+  var isIDCard   = inputName.indexOf("사원증") !== -1;   // 파일명에 “사원증”?
+  var abForCheck = isIDCard ? abCount / 2 : abCount;    // 비교용 대지 개수
+  // ―――――――――――――――――――――――――――――――――――――
+
+
   // 🔸 데이터셋 개수 확인
   var dsCount = doc.dataSets.length;
 
   // 🔸 비교 및 경고
   var errorMsg = "";
 
-  if (qty !== abCount) {
-    errorMsg += "📌 파일명 수량 (" + qty + ") ≠ 대지 개수 (" + abCount + ")\n";
+  if (qty !== abForCheck) {
+    errorMsg += "📌 파일명 수량 (" + qty + ") ≠ "
+              + (isIDCard ? "대지*2 개수 (" : "대지 개수 (")
+              + abForCheck + ")\n";
   }
-
   if (dsCount > 0 && qty !== dsCount) {
     errorMsg += "📌 파일명 수량 (" + qty + ") ≠ 데이터셋 개수 (" + dsCount + ")\n";
   }

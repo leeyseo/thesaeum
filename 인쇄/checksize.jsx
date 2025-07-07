@@ -28,7 +28,8 @@
   var mmToPt = 2.834645;
   var targetWpt = targetW * mmToPt;
   var targetHpt = targetH * mmToPt;
-  var tolerance = 2 * mmToPt; // 2mm 허용 오차
+  // var tolerance = 2 * mmToPt; // 2mm 허용 오차
+  var tolerance = (fileName.indexOf("사원증") !== -1 ? 5 : 2) * mmToPt;
 
   // ── 2. 보이는 레이어의 첫 번째 아트보드 크기 확인 ──
   var firstAB = doc.artboards[0].artboardRect;
