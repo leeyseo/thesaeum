@@ -148,6 +148,7 @@
           dup.moveToBeginning(grp);
         }
         clearBg(grp);
+        grp.blendingMode = BlendModes.MULTIPLY;
         var gb = grp.visibleBounds;
         grp.translate(pos.x - gb[0], pos.y - gb[1]);
       }
@@ -162,7 +163,7 @@
     var expAB = doc.artboards.add([ORIGIN_X, 0, ORIGIN_X + totW, -totH]);
     var expIdx = doc.artboards.length - 1;
 
-    var outDir = new Folder("C:/work/" + folderId + "/jpg");
+    var outDir = new Folder("C:/work/" + folderId);
     if (!outDir.exists) outDir.create();
     // var basePath = outDir.fsName + "/" + baseName + "_전체시안(" + (part + 1) + ")";
     var cleanName = baseName.replace(/\s+/g, "");

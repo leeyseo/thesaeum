@@ -43,6 +43,12 @@
   if (!layVar) { alert("❌ '레이어' 변수를 찾을 수 없습니다."); return; }
 
   /* ──────────── 2) 아트보드 초기화 ──────────── */
+
+  var rect0 = doc.artboards[0].artboardRect;   // [L,T,R,B]
+  var rect1 = doc.artboards[1].artboardRect;
+  GAP = rect1[0] - rect0[2];                   // 뒤 보드 L − 앞 보드 R
+  if (GAP < 0) GAP = 0;                        // (예외 보호)
+  
   while (doc.artboards.length > 1) doc.artboards[1].remove();
   var AB0   = doc.artboards[0].artboardRect,         // [L,T,R,B]
       AB_W  = AB0[2] - AB0[0],
@@ -163,6 +169,25 @@
     try { srcLayer = doc.layers.getByName("Artboard_" + gIdx); }
     catch (_) { continue; }
 
+    // /* 3-2) 원본 레이어(srcLayer) 얻은 직후 ─ 여기에 삽입 */
+    // (function () {
+    //     var used = {};                          // 중복 제거용 해시
+    //     for (var k = 0; k < srcLayer.pageItems.length; k++)
+    //         used[srcLayer.pageItems[k].artboard] = true;
+
+    //     var abList = [];                        // 고유 아트보드 번호 배열
+    //     for (var key in used) if (used.hasOwnProperty(key)) abList.push(+key);  // 숫자 변환
+
+    //     abList.sort(function (a, b) { return a - b; });   // 보기 좋게 정렬
+
+    //     alert(
+    //         "DS #" + (d + 1) +
+    //         "  |  사용된 아트보드: " + abList.join(", ") +
+    //         "  (총 " + abList.length + "개)"
+    //     );
+    // })();
+
+
     /* 3-3) 앞/뒤 판별 */
     var frontAB =  9999, backAB = -9999;
     for (i = 0; i < srcLayer.pageItems.length; i++) {
@@ -194,6 +219,19 @@
     if (d !== 0) doc.artboards[abFIdx].artboardRect = rectF;
     var abBIdx = (doc.artboards.add(rectB), doc.artboards.length - 1);
 
+    // /* ── DEBUG: srcLayer 안 오브젝트의 artboard 분포 ── */
+    // (function () {
+    //     var cnt = {}, numNaN = 0;
+    //     for (var k = 0; k < srcLayer.pageItems.length; k++) {
+    //         var idx = srcLayer.pageItems[k].artboard;   // -1, 0, 1 …
+    //         if (isNaN(idx)) { numNaN++; idx = "NaN"; }
+    //         cnt[idx] = (cnt[idx] || 0) + 1;
+    //     }
+    //     var msg = "DS #" + (d+1) + "  artboard 분포\n";
+    //     for (var key in cnt) msg += "  [" + key + "] ▶ " + cnt[key] + "\n";
+    //     alert(msg);
+    // })();
+
     /* 3-6) 앞·뒤 그룹 복제 + 아이템 배열 */
     var grpF = outLayer.groupItems.add(); grpF.name = "DS" + (d + 1) + "_" + gIdx + "_Front";
     var grpB = outLayer.groupItems.add(); grpB.name = "DS" + (d + 1) + "_" + gIdx + "_Back";
@@ -208,6 +246,10 @@
       else if (pit.artboard === backAB)
         itemsB.push( pit.duplicate(grpB, ElementPlacement.PLACEATEND) );
     }
+
+    // if (itemsB.length === 0) {
+    //   alert("⚠️  DS #" + (d + 1) + " : 뒷면 항목이 없습니다!");
+    // }
 
     /* 3-7) 1차 정렬 → Ungroup → 2차(최종) 정렬 */
     alignGroup(grpF, abFIdx);

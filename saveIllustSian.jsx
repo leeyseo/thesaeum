@@ -22,7 +22,7 @@
   var projRoot  = new Folder(root.fsName + "/" + numFolder);
   if (!projRoot.exists) projRoot.create();
 
-  var saveDir   = new Folder(projRoot.fsName + "/시안기록");
+  var saveDir   = new Folder(projRoot.fsName);
   if (!saveDir.exists) saveDir.create();
 
   /* 4) 파일명 중복 방지 */

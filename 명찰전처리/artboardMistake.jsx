@@ -60,7 +60,7 @@
     rectPool.push(bb);
     itemPool.push(it);
   }
-  if (!rectPool.length) { alert("대지 밖(그리고 보이는) 디자인이 없습니다."); return; }
+  if (!rectPool.length) { return; }
 
   /* ───── 3) 겹침 병합 → 덩어리(chunks) ───── */
   var chunks = [];
@@ -105,6 +105,6 @@
   for (var key in matchedSet) sel.push(matchedSet[key]);
   doc.selection = sel;           // 숨김/잠김 오브젝트가 없으므로 오류 없음
 
-  alert("➕ 새 아트보드: " + added +
-        "개\n✅ 선택된 디자인: " + sel.length + "개");
+  // alert("➕ 새 아트보드: " + added +
+  //       "개\n✅ 선택된 디자인: " + sel.length + "개");
 })();

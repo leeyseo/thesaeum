@@ -11,15 +11,30 @@
     ""
   );
   if (!input) return;
+  
 
   var baseOrig = input;                    // 표시용(공백 포함)
   var basePath = input.replace(/ /g, "-"); // 경로·파일명용
+  /* ❶ ‘뱃지’ 여부에 따라 허용 필드 수가 다름 */
+
 
   var parts = baseOrig.split("_");
-  if (parts.length < 7) { alert("❌ 입력 형식 오류"); return; }
 
-  var orderNo  = parts[6];                        // 20250623-0001503
-  var customer = parts[4];                        // CW 청원케딜락
+  var isBadge = parts[0].indexOf("뱃지") !== -1;
+  /* ❷ 형식 검사 */
+  if ( (!isBadge && parts.length < 7) ||   // 일반 = 7필드 이상
+      ( isBadge && parts.length < 6) ) {  // 뱃지 = 6필드 이상
+    alert("❌ 입력 형식 오류"); return;
+  }
+  /* ❸ 필드 해석 */
+  if(isBadge){var orderNo  = parts[ parts.length - 1 ];   }else{
+    var orderNo  = parts[6];  
+  }
+
+
+
+  // var orderNo  = parts[6];                        // 20250623-0001503
+  // var customer = parts[4];                        // CW 청원케딜락
   var imgKey   = (parts[0].indexOf("엣지") !== -1 ? "엣지_" : "") +
                  parts[1] + "_" + parts[2];       // 배경키
 
@@ -38,9 +53,43 @@
     return f;
   }
 
-  var siAnFile = uniq(basePath + "_시안전송용");
-  var hwakFile = uniq(basePath + "_확정형");
-  var mockFile = uniq(basePath + "_시안전송목업용");
+
+  /* 중복번호(_숫자) 찾기 ───────────────────────── */
+  function getDupTag(folder, baseName) {
+    // baseName 예: "엣지 명찰_70x20_실버_자석3구_KPA대한약사회_1_20250622-5555555"
+    var maxDup  = 0;
+    var aiFiles = folder.getFiles("*.ai");          // 폴더 안 *.ai 모두
+
+    for (var i = 0; i < aiFiles.length; i++) {
+      var nm = decodeURI(aiFiles[i].name);          // 한글·공백 복원
+      nm = nm.replace(/\.ai$/i, "");                // 확장자 제거
+
+      // ① baseName 과 완전히 같은 파일 ⇒ 중복번호 0 (건너뜀)
+      if (nm === baseName) continue;
+
+      // ② "<baseName>_<숫자>" 패턴만 추출
+      if (nm.lastIndexOf(baseName + "_", 0) === 0) { // prefix 일치?
+        var tail = nm.slice(baseName.length + 1);    // '_' 뒤
+        if (/^\d+$/.test(tail)) {                    // 순수 숫자?
+          var n = parseInt(tail, 10);
+          if (n > maxDup) maxDup = n;                // 최대값 갱신
+        }
+      }
+    }
+
+    // 숫자가 0이면 빈 문자열, 1 이상이면 "(숫자)"
+    if (maxDup > 0) return "_시안(" + maxDup + ")"; // 예: 시안(3)
+    return "_시안";  
+  }
+
+  /* 사용 */
+  var dupTag = getDupTag(outDir, baseOrig);  // "(1)" 또는 ""
+  // alert(dupTag);
+
+  // var siAnFile = uniq(basePath  + "_시안전송용"+ dupTag);
+  var siAnFile = new File(Folder.temp + "/__siAn__.jpg");
+  var hwakFile = uniq(basePath  + "_확정형"+ dupTag);
+  var mockFile = uniq(basePath  + "_시안전송목업용"+ dupTag);
 
   /* 2) 전경 PNG (배경 투명) */
   doc.artboards.setActiveArtboardIndex(0);
@@ -65,6 +114,7 @@
   /* 공통 JPG 옵션 */
   var jOpt = new ExportOptionsJPEG();
   jOpt.qualitySetting = 100; jOpt.resolution = 600;
+  jOpt.resolution      = isBadge ? 1200 : 600;
   jOpt.horizontalScale = jOpt.verticalScale = 100;
   jOpt.antiAliasing = true; jOpt.optimized = true; jOpt.artBoardClipping = true;
 
@@ -90,7 +140,7 @@
     nd.artboards[0].artboardRect = [0, H, W, 0];
 
     // 전경 스케일 & 위치
-    var sPct = (W * ratio / f.width) * 100;
+    var sPct = (W * ratio / f.width) * 98;
     f.resize(sPct, sPct);
     var spare = H - f.height;
     f.position = [(W - f.width) / 2, H - (spare / 2) - (spare * yShift)];
@@ -167,7 +217,8 @@
   var Wm = b.width, Hm = b.height;
   nd.artboards[0].artboardRect = [0, Hm, Wm, 0];
 
-  var sPctM = (Wm * 0.6 / f.width) * 100;
+  var frontRatio = isBadge ? 0.3 : 0.60;
+  var sPctM = (Wm * frontRatio / f.width) * 100;
   f.resize(sPctM, sPctM);
   var spareM = Hm - f.height;
   f.position = [(Wm - f.width) / 2, Hm - (spareM / 2) - (spareM * 0.1)];
@@ -192,6 +243,7 @@
 
   /* 7) 임시 PNG 삭제 & 종료 */
   try { tmpPng.remove(); } catch (e) {}
+  try { siAnFile.remove(); } catch (e) {}
   alert("✅ JPG 3종 저장 완료 (Multiply 반영)");
 
 })();
