@@ -53,7 +53,7 @@
   var m = inputName.match(/_([0-9]{8}-[0-9]{7})$/);
   if (!m){ alert("❌ 파일명 마지막에 '_YYYYMMDD-#######' 형식이 필요합니다."); return; }
   var folderName   = m[1];
-  var resultFolder = new Folder("C:/work/" + folderName + "/작업결과");
+  var resultFolder = new Folder("C:/work/" + folderName);
   if(!resultFolder.exists) resultFolder.create();
 
   function uniq(folder, base){

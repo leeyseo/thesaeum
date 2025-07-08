@@ -56,7 +56,7 @@
   var folderName = match[1];
 
   // 📁 작업결과 폴더 생성
-  var resultFolder = new Folder("C:/work/" + folderName + "/작업결과");
+  var resultFolder = new Folder("C:/work/" + folderName);
   if (!resultFolder.exists) resultFolder.create();
 
   // 중복 방지 파일 생성 함수
