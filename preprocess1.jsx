@@ -1,198 +1,167 @@
-// #target "Illustrator"
+/**
+ * ▸ “레이어” 변수 ←→ 더미 텍스트 1개 자동 매핑
+ * ▸ 더미 텍스트는 **단 하나의** 레이어 “레이어변수” 안에 생성
+ * ▸ 이미 레이어와 매핑이 있으면 새로 만들지 않음
+ * ES3 ExtendScript
+ */
+(function () {
+  var doc = app.activeDocument;
+  if (!doc) { alert("문서가 없습니다."); return; }
+
+  /* ── 0. 전역 잠금·숨김 해제 ── */
+  app.executeMenuCommand("unlockAll");
+  app.executeMenuCommand("showAll");
+
+  /* ── 1. ‘레이어’ 변수 확보 ── */
+  var layVar = null, i;
+  for (i = 0; i < doc.variables.length; i++)
+    if (doc.variables[i].name === "레이어") { layVar = doc.variables[i]; break; }
+
+  if (!layVar) {
+    layVar = doc.variables.add();
+    layVar.name = "레이어";
+    layVar.kind = VariableKind.TEXTUAL;
+  }
+
+  /* 이미 매핑돼 있으면 아무것도 하지 않음 */
+  try { if (layVar.pageItems.length > 0) { alert("이미 매핑돼 있습니다."); return; } }
+  catch (_) {}   // 일부 버전 예외 무시
+
+  /* ── 2. 레이어 “레이어변수” 준비 (중복 생성 X) ── */
+  var holdLayer;
+  try { holdLayer = doc.layers.getByName("레이어변수"); }
+  catch (e) { holdLayer = doc.layers.add(); holdLayer.name = "레이어변수"; }
+
+  holdLayer.locked   = false;   // 수정 가능
+  holdLayer.template = false;
+  holdLayer.visible  = true;    // 생성·확인 시 잠깐 보이도록
+
+  /* ── 3. 더미 텍스트를 아트보드 중앙에 생성 ── */
+  var AB = doc.artboards[0].artboardRect;   // [L, T, R, B]
+  var cx = (AB[0] + AB[2]) / 2;
+  var cy = (AB[1] + AB[3]) / 2;
+
+  doc.activeLayer = holdLayer;
+  var tf = holdLayer.textFrames.add();
+  tf.contents = "";
+  tf.textRange.characterAttributes.size = 1;  // 1 pt
+  tf.position = [cx, cy];                     // 중앙
+
+  /* ── 4. 변수와 바인딩 ── */
+  try { tf.contentVariable = layVar; }        // CS6+
+  catch (e) { tf.variable = layVar; }         // 구버전
+
+  /* ── 5. 레이어 숨김 처리 ── */
+  holdLayer.visible = false;
+
+  // alert("✅ 더미 텍스트가 '레이어' 변수에 매핑되었습니다.\n(레이어 '레이어변수'는 숨김 처리됨)");
+})();
+
 
 (function () {
-  if (app.documents.length === 0) { alert("열린 문서가 없습니다."); return; }
+  var doc = app.activeDocument;
+  if (!doc) { alert("문서가 없습니다."); return; }
+  if (doc.dataSets.length === 0) { alert("데이터셋이 없습니다."); return; }
 
-  var doc     = app.activeDocument;
-  var abCount = doc.artboards.length;
+  app.executeMenuCommand("unlockAll");
+  app.executeMenuCommand("showAll");
 
-  /* ── 0. 맨 아래 레이어 확보 ── */
-  var bottomLayer           = doc.layers[doc.layers.length - 1];
-  var restoreLock  = bottomLayer.locked;
-  var restoreHide  = !bottomLayer.visible;
-  if (restoreLock) bottomLayer.locked = false;
-  if (restoreHide) bottomLayer.visible = true;
+  while (doc.artboards.length > 1) doc.artboards[1].remove();
+  var AB0  = doc.artboards[0].artboardRect,
+      AB_H = AB0[1] - AB0[3],
+      GAP  = 50;
 
-  /* 흰색 객체 */
-  var white = new RGBColor(); white.red = white.green = white.blue = 255;
+  for (var i = 0; i < doc.layers.length; i++) doc.layers[i].visible = false;
+  try { doc.layers.getByName("출력_디자인").remove(); } catch (_) {}
+  var outLayer = doc.layers.add(); outLayer.name = "출력_디자인";
 
-  /* ── 1. 각 아트보드마다 배경 처리 ── */
-  for (var ai = 0; ai < abCount; ai++) {
-
-    var abRect = doc.artboards[ai].artboardRect; // [L,T,R,B]
-    var abLeft = abRect[0], abTop = abRect[1],
-        abW    = abRect[2] - abRect[0],
-        abH    = abRect[1] - abRect[3];
-
-    var found = false;
-
-    /* 1-1) 배경 후보 검색 */
-    for (var j = 0; j < doc.pageItems.length; j++) {
-      var it = doc.pageItems[j];
-      if (it.locked || it.hidden) continue;
-
-      var vb = it.visibleBounds;               // [L,T,R,B]
-      var w  = vb[2] - vb[0], h = vb[1] - vb[3];
-
-      var sameSize = Math.abs(w - abW) < 1 && Math.abs(h - abH) < 1;
-      var samePos  = Math.abs(vb[0] - abLeft) < 1 && Math.abs(vb[1] - abTop) < 1;
-      if (!sameSize || !samePos) continue;     // 아트보드와 정확히 일치한 것만
-
-      /* ── (A) 이미 흰색이면 그냥 통과 ── */
-      if (it.filled && it.fillColor.typename === "RGBColor") {
-        var fc = it.fillColor;
-        if (fc.red === 255 && fc.green === 255 && fc.blue === 255) {
-          found = true;        // 흰 배경 존재 → 추가 작업 없음
+  var layVar = null, varPairs = [];
+  for (i = 0; i < doc.variables.length; i++) {
+    var nm = doc.variables[i].name;
+    if (nm === "레이어") layVar = doc.variables[i];
+    if (nm.indexOf("이름_") === 0) {
+      var idx = nm.substring(3), mate = "직책_" + idx;
+      for (var j = 0; j < doc.variables.length; j++) {
+        if (doc.variables[j].name === mate) {
+          varPairs.push({ idx: idx, nameVar: doc.variables[i], titleVar: doc.variables[j] });
           break;
         }
       }
+    }
+  }
+  if (!layVar) { alert("변수 '레이어' 가 없습니다."); return; }
 
-      /* ── (B) 투명 → 흰색 변환 ── */
-      if (!it.filled || it.fillColor.typename === "NoColor") {
-        it.filled    = true;
-        it.fillColor = white;
+  for (var d = 0; d < doc.dataSets.length; d++) {
+    var ds = doc.dataSets[d];
+    ds.display(); $.sleep(60);
+
+    var gIdx = null, lyrVal = null;
+    try {
+      if (typeof ds.getVariableValue === "function") {
+        var dv = ds.getVariableValue(layVar);
+        lyrVal = dv.textualContents || dv.contents || dv;
       }
+    } catch (_) {}
 
-      /* ── (C) 흰색이 아니면 색은 유지하되 뒤로 보내기 ── */
-      it.move(bottomLayer, ElementPlacement.PLACEATEND);
-      it.zOrder(ZOrderMethod.SENDTOBACK);
-      found = true;
-      break;
+    if (lyrVal == null) {
+      try { lyrVal = layVar.pageItems[0].contents; } catch (_) {}
+    }
+    if (lyrVal && lyrVal !== "Nan") gIdx = lyrVal;
+    if (!gIdx) {
+      for (i = 0; i < varPairs.length; i++) {
+        try {
+          var vN = varPairs[i].nameVar.pageItems[0].contents,
+              vT = varPairs[i].titleVar.pageItems[0].contents;
+          if (vN !== "Nan" && vT !== "Nan") { gIdx = varPairs[i].idx; break; }
+        } catch (_) {}
+      }
+    }
+    if (!gIdx) {
+      alert("DS" + (d+1) + ": 사용할 레이어를 판단할 수 없습니다.");
+      continue;
     }
 
-    /* 1-2) 후보가 없으면 새 사각형 생성 */
-    if (!found) {
-      var bg = bottomLayer.pathItems.rectangle(abTop, abLeft, abW, abH);
-      bg.fillColor = white;
-      bg.stroked   = false;
-      bg.zOrder(ZOrderMethod.SENDTOBACK);
-    }
-  }
-
-  /* ── 2. 레이어 상태 복구 ── */
-  if (restoreLock) bottomLayer.locked  = true;
-  if (restoreHide) bottomLayer.visible = false;
-
-  // alert("✔ 투명 배경을 흰색으로 변환했고, 이미 흰 배경은 그대로 두었습니다.");
-})();
-
-
-
-(function () {
-  if (app.documents.length === 0) {
-    alert("열린 문서가 없습니다.");
-    return;
-  }
-
-  var doc = app.activeDocument;
-  var noStroke = new NoColor();
-  var count = 0;
-
-  /* ───────── 모든 오브젝트 순회 (잠김/숨김 제외) ───────── */
-  function traverseVisible(layer) {
-    if (!layer.visible) return;
-    for (var i = 0; i < layer.pageItems.length; i++) {
-      processItem(layer.pageItems[i]);
+    var srcLayer;
+    try { srcLayer = doc.layers.getByName("Artboard_" + gIdx); }
+    catch (_) {
+      alert("Artboard_" + gIdx + " 레이어가 없습니다.");
+      continue;
     }
 
-    // 하위 레이어도 포함
-    for (var j = 0; j < layer.layers.length; j++) {
-      traverseVisible(layer.layers[j]);
+    var dy = -d * (AB_H + GAP),
+        rect = [AB0[0], AB0[1] + dy, AB0[2], AB0[3] + dy],
+        abIdx;
+
+    if (d === 0) {
+      abIdx = 0;
+    } else {
+      doc.artboards.add(rect);
+      abIdx = doc.artboards.length - 1;
     }
-  }
 
-  function processItem(item) {
-    if (!item || item.locked || item.hidden) return;
-    if (item.layer && item.layer.name.indexOf("칼선") !== -1) return;
+    var grp = outLayer.groupItems.add();
+    grp.name = "DS" + (d+1) + "_" + gIdx;
 
-    // 그룹인 경우 안쪽으로 순회
-    if (item.typename === "GroupItem") {
-      for (var i = 0; i < item.pageItems.length; i++) {
-        processItem(item.pageItems[i]);
+    for (i = 0; i < srcLayer.pageItems.length; i++) {
+      var it = srcLayer.pageItems[i];
+      if (!it.locked && !it.hidden) {
+        it.duplicate(grp, ElementPlacement.PLACEATEND);
       }
     }
 
-    // 복합패스는 pathItems 사용
-    else if (item.typename === "CompoundPathItem") {
-      for (var j = 0; j < item.pathItems.length; j++) {
-        processItem(item.pathItems[j]);
-      }
-    }
+    // 정확한 위치 맞춤 (디자인 ↔ 새 아트보드)
+    var bounds = grp.visibleBounds; // [L, T, R, B]
+    var designLeft = bounds[0], designTop = bounds[1];
 
-    // 기본 객체 처리
-    else {
-      try {
-        if (item.stroked) {
-          item.strokeColor = noStroke;
-          count++;
-        }
-      } catch (e) { /* 일부는 stroke 속성 없음 */ }
-    }
+    var abRect = doc.artboards[abIdx].artboardRect;
+    var abLeft = abRect[0], abTop = abRect[1];
+
+    var dx = abLeft - designLeft;
+    var dy2 = abTop - designTop;
+
+    grp.position = [grp.position[0] + dx, grp.position[1] + dy2];
+    try { grp.artboard = abIdx; } catch (_) {}
   }
 
-  /* ───────── 전체 레이어 탐색 시작 ───────── */
-  for (var i = 0; i < doc.layers.length; i++) {
-    traverseVisible(doc.layers[i]);
-  }
-
-  // alert("외곽선 투명 처리 완료: " + count + "개");
-})();
-
-
-
-/**
- * ① 모든 아트보드에 보이는 객체 → 해당 Artboard_N 레이어로 이동
- * ② 이동이 끝나면 원래 있던 레이어는 전부 삭제
- * ⚠︎ 되돌릴 수 없으니 파일을 먼저 저장(백업)하세요
- */
-(function () {
-
-  if (app.documents.length === 0) { alert("열린 문서가 없습니다."); return; }
-
-  var doc = app.activeDocument,
-      N   = doc.artboards.length;
-
-  /* 0) 기존 레이어 목록 백업 & 잠금 해제 -------------------------------- */
-  var oldLayers = [];
-  for (var i = 0; i < doc.layers.length; i++) {
-    var lay = doc.layers[i];
-    lay.locked   = false;
-    lay.template = false;
-    lay.visible  = true;
-    oldLayers.push(lay);
-  }
-
-  /* 1) 아트보드별 객체 이동 ------------------------------------------- */
-  var moved = 0;
-  for (var a = 0; a < N; a++) {
-
-    // 대상 아트보드 활성화
-    doc.artboards.setActiveArtboardIndex(a);
-
-    // 대지 위 모두 선택 (Illustrator 내부 명령 – 빠름)
-    app.executeMenuCommand("selectallinartboard");
-    if (doc.selection.length === 0) continue;
-
-    // 목적 레이어 확보 (없으면 생성)
-    var destName = "Artboard_" + (a + 1);
-    var dest;
-    try      { dest = doc.layers.getByName(destName); }
-    catch(e) { dest = doc.layers.add(); dest.name = destName; }
-    dest.locked  = false;
-    dest.visible = true;
-    doc.activeLayer = dest;
-
-    // Cut → Paste In Place
-    app.executeMenuCommand("cut");
-    app.executeMenuCommand("pasteInPlace");
-
-    moved += doc.selection.length;   // 방금 붙여넣은 개수
-  }
-
-  /* 2) 기존 레이어 싹 삭제 ------------------------------------------- */
-  var removed = 0;
-  for (var j = 0; j < oldLayers.length; j++) {
-    try { oldLayers[j].remove(); removed++; } catch (e) {}
-  }
-
+  doc.dataSets[0].display();
 })();

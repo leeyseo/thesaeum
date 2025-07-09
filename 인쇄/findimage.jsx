@@ -1,46 +1,30 @@
-// (function () {
-//   if (app.documents.length === 0) {
-//     alert("열린 문서가 없습니다.");
-//     return;
-//   }
+/*  #target "Illustrator"   -- ES3 호환  */
+/*  보이는 레이어에 이미지(PlacedItem·RasterItem) 있으면 한 줄 알림  */
 
-//   var doc = app.activeDocument;
-//   var hasImage = false;
-
-//   // 모든 페이지 아이템 순회
-//   for (var i = 0; i < doc.pageItems.length; i++) {
-//     var item = doc.pageItems[i];
-
-//     // 이미지 여부 확인 (PlacedItem 또는 RasterItem)
-//     if (item.typename === "PlacedItem" || item.typename === "RasterItem") {
-//       hasImage = true;
-//       break;
-//     }
-//   }
-
-//   if (hasImage) {
-//     alert("✅ 현재 문서에 이미지가 포함되어 있습니다.");
-//   } else {
-//     alert("❌ 현재 문서에는 이미지가 없습니다.");
-//   }
-// })();
 (function () {
-  if (app.documents.length === 0) return;
-
+  if (app.documents.length === 0) return;          // 문서 없음 → 종료
   var doc = app.activeDocument;
-  doc.selection = null;
 
-  var count = 0;
+  // 레이어(및 하위 레이어) 안에 이미지가 있는지 재귀 탐색
+  function layerHasImage(lyr) {
+    var items = lyr.pageItems;
+    for (var i = 0; i < items.length; i++) {
+      var t = items[i].typename;
+      if (t === "PlacedItem" || t === "RasterItem") return true;
+    }
+    for (var j = 0; j < lyr.layers.length; j++) {
+      if (layerHasImage(lyr.layers[j])) return true;
+    }
+    return false;
+  }
 
-  for (var i = 0; i < doc.pageItems.length; i++) {
-    var item = doc.pageItems[i];
-    if (item.typename === "PlacedItem" || item.typename === "RasterItem") {
-      item.selected = true;
-      count++;
+  // 보이는 레이어 중 하나라도 이미지가 있으면 알림
+  for (var k = 0; k < doc.layers.length; k++) {
+    var L = doc.layers[k];
+    if (L.visible && layerHasImage(L)) {
+      alert("이미지가 존재합니다.");
+      return;
     }
   }
-
-  if (count > 0) {
-    alert("✅ 현재 문서에 이미지가 포함되어 있습니다.");
-  }
+  /* 이미지가 없으면 조용히 종료 */
 })();

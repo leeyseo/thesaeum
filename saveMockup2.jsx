@@ -219,7 +219,7 @@
 
 
         /* ↓ 2) 위치 조정 : 왼쪽 100pt, 아래 140pt */
-      var x = (bgVB[0] + bgVB[2]) / 2 - 300;               // 가운데에서 ←100
+      var x = (bgVB[0] + bgVB[2]) / 2 - 280;               // 가운데에서 ←100
       var y = bgVB[1] + ORDER_OFF[1] - 800;                // 기존보다 ↓140
       tf.position = [ x, y ];
       /* 배경 중앙 기준 ORDER_OFF[1] 아래 위치 */
