@@ -13,7 +13,7 @@
   if (!input) return;
 
   /* 2) 날짜-번호(폴더명) 추출 */
-  var m = input.match(/_([0-9]{8}-[0-9]{7})$/);
+  var m = input.match(/_([0-9]{8}-[0-9]{7}(?:-\d+)?)$/);
   if (!m) { alert("❌ '_날짜-번호' 형식을 찾을 수 없습니다."); return; }
   var numFolder = m[1];                        // 예: 20250626-0000190
 

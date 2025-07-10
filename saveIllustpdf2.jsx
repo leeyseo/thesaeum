@@ -70,11 +70,11 @@
   var file2 = new File(workFolder.fsName + "/" + inputName + ".pdf");
   doc.saveAs(file2, pdfOpts);
 
-  /* ──── 완료 보고 ──── */
-  alert(
-    "✅ PDF 저장 완료 (행-우선 2열 순서)\n" +
-    "1) " + file1.fsName + "\n" +
-    "2) " + file2.fsName
-  );
+  // /* ──── 완료 보고 ──── */
+  // alert(
+  //   "✅ PDF 저장 완료 (행-우선 2열 순서)\n" +
+  //   "1) " + file1.fsName + "\n" +
+  //   "2) " + file2.fsName
+  // );
 
 })();

@@ -50,7 +50,7 @@
   var GAP       = 20;               // 세트↔세트 간격
   var PAIR_W    = ABW * 2 + INNER_GAP;
 
-  var COL_MAX   = 5;                // 한 행에 세트 5개(=10아트보드)까지
+  var COL_MAX   = 1;                // 한 행에 세트 5개(=10아트보드)까지
   var ROW_MAX   = 10;               // 필요하면 조정
 
   /* 시안 배치 시작 X (원본 우측 여백) */
@@ -150,6 +150,33 @@
       if(cell.row>maxRow)maxRow=cell.row;
     }
 
+            /* 중복번호(_숫자) 찾기 ───────────────────────── */
+    function getDupTag(folder, baseName) {
+      // baseName 예: "엣지 명찰_70x20_실버_자석3구_KPA대한약사회_1_20250622-5555555"
+      var maxDup  = 0;
+      var aiFiles = folder.getFiles("*.ai");   // 폴더 안 *.ai 모두
+
+      for (var i = 0; i < aiFiles.length; i++) {
+        var nm = decodeURI(aiFiles[i].name);   // 한글·공백 복원
+        nm = nm.replace(/\.ai$/i, "");         // 확장자 제거
+
+        // ① baseName 과 완전히 같은 파일 ⇒ 중복번호 0 (건너뜀)
+        if (nm === baseName) continue;
+
+        // ② "<baseName>_<숫자>" 패턴만 추출
+        if (nm.lastIndexOf(baseName + "_", 0) === 0) { // prefix 일치?
+          var tail = nm.slice(baseName.length + 1);    // '_' 뒤
+          if (/^\d+$/.test(tail)) {                    // 순수 숫자?
+            var n = parseInt(tail, 10);
+            if (n > maxDup) maxDup = n;                // 최대값 갱신
+          }
+        }
+      }
+
+      // 0 → "" , 1↑ → "_<숫자>"
+      return (maxDup > 0) ? "_" + maxDup : "";
+    }
+
     /* 임시 출력용 아트보드 만들기 */
     var totCols=maxCol+1, totRows=maxRow+1;
     var totW=totCols*PAIR_W + (totCols-1)*GAP;
@@ -159,8 +186,24 @@
 
     /* 파일 저장 */
     doc.artboards.setActiveArtboardIndex(expIdx);
-    var clean = baseName.replace(/\s+/g,"");
-    var outFile = getNonConflictFile(outDir.fsName + "/" + clean +"_전체시안("+(part+1)+")",".jpg");
+    // var clean = baseName.replace(/\s+/g,"");
+    var dupTag = getDupTag(outDir, baseName);
+    function uniqueJpg(base) {
+      var safe = base.replace(/\s+/g, "-");
+      var f   = new File(safe + ".jpg");
+      var idx = 1;
+      while (f.exists) {                     // 이미 있으면
+        f = new File(base + "_" + idx + ".jpg");  // 뒤에 _1, _2 …
+        idx++;
+      }
+      return f;                              // 존재하지 않는 File 객체
+    }
+    var baseP= outDir.fsName + "/" + baseName + dupTag  + "_전체시안(" + (part + 1) + ")";
+
+    /* 3) 최종 저장 경로 */
+    var outFile = uniqueJpg(baseP);        // ← 여기서 중복 해결
+
+    // var outFile = getNonConflictFile(outDir.fsName + "/" + baseName + dupTag +"_전체시안("+(part+1)+")",".jpg");
     doc.exportFile(outFile, ExportType.JPEG, jpgOpt);
 
     /* 임시 아트보드 제거 */
@@ -174,5 +217,5 @@
   for (var nm in visMap)
     try { doc.layers.getByName(nm).visible = visMap[nm]; } catch(_){}
 
-  alert("✅ 시안 JPG 저장 완료!");
+  // alert("✅ 시안 JPG 저장 완료!");
 })();

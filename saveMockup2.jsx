@@ -6,9 +6,10 @@
   var PATH_EDGE   = "C:/work/img/엣지사원증.png";     // 엣지 배경
   var PATH_NORMAL = "C:/work/img/사원증.png";         // 일반 배경
   var PATH_MOCKUP = "C:/work/img/목업.png";           // 목업 배경
+  var PATH_DEFAULT = "C:/work/img/default.png"; 
 
   // var DESIGN_FILL   = 0.975; // 시안전송용 채움(0~1)
-  var GAP           = 65;    // 앞·뒤 디자인 간격(pt)
+  var GAP           = 10;    // 앞·뒤 디자인 간격(pt)
 
   /* 목업 전용 */
   var MOCK_SCALE    = 0.60;  // 목업 배경 대비 디자인 크기
@@ -34,7 +35,11 @@
   if (!full) return;
 
   /* 2) 제품코드·주문번호 추출 (예: ..._IMHC_3_20250623-0000362) */
-  var m = full.match(/_([A-Za-z0-9가-힣]+)_[0-9]+_([0-9]{8}-[0-9]{7})$/);
+  // var m = full.match(/_([A-Za-z0-9가-힣]+)_[0-9]+_([0-9]{8}-[0-9]{7})$/);
+  // 변경 후
+  var m = full.match(
+    /_([A-Za-z0-9가-힣]+)_[0-9]+_([0-9]{8}-[0-9]{7}(?:-\d+)?)$/
+  );
   if (!m){ alert("❌ 파일명에서 제품코드·주문번호를 찾지 못했습니다."); return; }
   // var productCode = m[1];      // IMHC
   var orderNo     = m[2];      // 20250623-0000362
@@ -46,16 +51,14 @@
     while(f.exists){ i++; f=new File(dir+"/"+stem+"_"+i+".jpg"); } return f; }
 
 
-
-    /* 중복번호(_숫자) 찾기 ───────────────────────── */
-  function getDupTag(folder, baseName) {
+    function getDupTag(folder, baseName) {
     // baseName 예: "엣지 명찰_70x20_실버_자석3구_KPA대한약사회_1_20250622-5555555"
     var maxDup  = 0;
-    var aiFiles = folder.getFiles("*.ai");          // 폴더 안 *.ai 모두
+    var aiFiles = folder.getFiles("*.ai");   // 폴더 안 *.ai 모두
 
     for (var i = 0; i < aiFiles.length; i++) {
-      var nm = decodeURI(aiFiles[i].name);          // 한글·공백 복원
-      nm = nm.replace(/\.ai$/i, "");                // 확장자 제거
+      var nm = decodeURI(aiFiles[i].name);   // 한글·공백 복원
+      nm = nm.replace(/\.ai$/i, "");         // 확장자 제거
 
       // ① baseName 과 완전히 같은 파일 ⇒ 중복번호 0 (건너뜀)
       if (nm === baseName) continue;
@@ -70,20 +73,18 @@
       }
     }
 
-    // 숫자가 0이면 빈 문자열, 1 이상이면 "(숫자)"
-    if (maxDup > 0) return "_시안(" + maxDup + ")"; // 예: 시안(3)
-    return "_시안";  
+    // 0 → "" , 1↑ → "_<숫자>"
+    return (maxDup > 0) ? "_" + maxDup : "";
   }
-
 
 
   var dupTag = getDupTag(dir, full);   // ← "(3)" 또는 "_시안"  
   // alert(dupTag);
 
 
-  var outFix  = uniq(safeName + "_확정용"+dupTag);
+  var outFix  = uniq(safeName + dupTag + "_확정용");
   // var outSend = uniq(safeName + "_시안전송용");
-  var outMock = uniq(safeName + "_시안전송목업용"+dupTag);
+  var outMock = uniq(safeName + dupTag + "_시안전송목업용");
 
   /* 4) 배경 이미지 선택 */
   var isEdge = full.indexOf("엣지")!==-1;
@@ -128,6 +129,25 @@
     }
   }
   /*-------------------------------------------------------------*/
+  /* ---- 이미지 변수(이미지_1, 이미지_2 …)를 기본 PNG로 교체 ---- */
+  var defPic = new File(PATH_DEFAULT);            // 없으면 경고 후 중단
+  if (!defPic.exists) {
+    alert("❌ 기본 이미지가 없습니다:\n" + defPic.fsName);
+    return;
+  }
+  function replaceAllImages(obj) {
+    if (!obj) return;                              // null-check
+
+    if (obj.typename === "PlacedItem") {
+      obj.file = defPic;                           // 링크 교체
+      // obj.embed();                              // ← 파일을 문서에 임베드하려면 주석 해제
+    }
+
+    if (obj.pageItems && obj.pageItems.length) {   // 하위 아이템 재귀
+      for (var i = 0; i < obj.pageItems.length; i++)
+        replaceAllImages(obj.pageItems[i]);
+    }
+  }
 
   /* 8) 바운드 계산 함수 */
   function bounds(lyr){
@@ -152,6 +172,7 @@
   opt.qualitySetting=100; opt.resolution=600;
   opt.horizontalScale=opt.verticalScale=100;
   opt.antiAliasing=true; opt.optimized=true; opt.artBoardClipping=false;
+  
 
   /* 11) 확정용 JPG — '이름' 치환은 여기서만 */
   var fixLayer = doc.layers.add(); fixLayer.name = "EXPORT_FIX";
@@ -162,7 +183,8 @@
 
   /* 원본 exp는 잠시 숨기고, 복사본만 보이게 */
   exp.visible = false;
-  replaceName(fixLayer);                   // ← 홍길동 치환
+  replaceName(fixLayer);    
+  replaceAllImages(fixLayer);                   // ← 홍길동 치환
   doc.exportFile(outFix, ExportType.JPEG, opt);
 
   /* 임시 레이어 제거, exp 다시 표시 */

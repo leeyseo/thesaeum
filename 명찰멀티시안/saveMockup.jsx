@@ -58,11 +58,11 @@
   function getDupTag(folder, baseName) {
     // baseName 예: "엣지 명찰_70x20_실버_자석3구_KPA대한약사회_1_20250622-5555555"
     var maxDup  = 0;
-    var aiFiles = folder.getFiles("*.ai");          // 폴더 안 *.ai 모두
+    var aiFiles = folder.getFiles("*.ai");   // 폴더 안 *.ai 모두
 
     for (var i = 0; i < aiFiles.length; i++) {
-      var nm = decodeURI(aiFiles[i].name);          // 한글·공백 복원
-      nm = nm.replace(/\.ai$/i, "");                // 확장자 제거
+      var nm = decodeURI(aiFiles[i].name);   // 한글·공백 복원
+      nm = nm.replace(/\.ai$/i, "");         // 확장자 제거
 
       // ① baseName 과 완전히 같은 파일 ⇒ 중복번호 0 (건너뜀)
       if (nm === baseName) continue;
@@ -77,10 +77,10 @@
       }
     }
 
-    // 숫자가 0이면 빈 문자열, 1 이상이면 "(숫자)"
-    if (maxDup > 0) return "_시안(" + maxDup + ")"; // 예: 시안(3)
-    return "_시안";  
+    // 0 → "" , 1↑ → "_<숫자>"
+    return (maxDup > 0) ? "_" + maxDup : "";
   }
+
 
   /* 사용 */
   var dupTag = getDupTag(outDir, baseOrig);  // "(1)" 또는 ""
@@ -88,8 +88,8 @@
 
   // var siAnFile = uniq(basePath  + "_시안전송용"+ dupTag);
   var siAnFile = new File(Folder.temp + "/__siAn__.jpg");
-  var hwakFile = uniq(basePath  + "_확정형"+ dupTag);
-  var mockFile = uniq(basePath  + "_시안전송목업용"+ dupTag);
+  var hwakFile = uniq(basePath+ dupTag  + "_확정형");
+  var mockFile = uniq(basePath+ dupTag  + "_시안전송목업용");
 
   /* 2) 전경 PNG (배경 투명) */
   doc.artboards.setActiveArtboardIndex(0);

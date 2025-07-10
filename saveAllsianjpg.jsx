@@ -157,6 +157,37 @@
       idxCnt++;
     }
 
+        /* 중복번호(_숫자) 찾기 ───────────────────────── */
+    function getDupTag(folder, baseName) {
+      // baseName 예: "엣지 명찰_70x20_실버_자석3구_KPA대한약사회_1_20250622-5555555"
+      var maxDup  = 0;
+      var aiFiles = folder.getFiles("*.ai");   // 폴더 안 *.ai 모두
+
+      for (var i = 0; i < aiFiles.length; i++) {
+        var nm = decodeURI(aiFiles[i].name);   // 한글·공백 복원
+        nm = nm.replace(/\.ai$/i, "");         // 확장자 제거
+
+        // ① baseName 과 완전히 같은 파일 ⇒ 중복번호 0 (건너뜀)
+        if (nm === baseName) continue;
+
+        // ② "<baseName>_<숫자>" 패턴만 추출
+        if (nm.lastIndexOf(baseName + "_", 0) === 0) { // prefix 일치?
+          var tail = nm.slice(baseName.length + 1);    // '_' 뒤
+          if (/^\d+$/.test(tail)) {                    // 순수 숫자?
+            var n = parseInt(tail, 10);
+            if (n > maxDup) maxDup = n;                // 최대값 갱신
+          }
+        }
+      }
+
+      // 0 → "" , 1↑ → "_<숫자>"
+      return (maxDup > 0) ? "_" + maxDup : "";
+    }
+
+
+    /* 사용 */
+      // "(1)" 또는 ""
+
     var totCols = maxCol + 1, totRows = maxRow + 1;
     var totW = totCols * ABW + (totCols - 1) * GAP;
     var totH = totRows * ABH + (totRows - 1) * GAP;
@@ -166,9 +197,25 @@
     var outDir = new Folder("C:/work/" + folderId);
     if (!outDir.exists) outDir.create();
     // var basePath = outDir.fsName + "/" + baseName + "_전체시안(" + (part + 1) + ")";
-    var cleanName = baseName.replace(/\s+/g, "");
-    var basePath = outDir.fsName + "/" + cleanName + "_전체시안(" + (part + 1) + ")";
-    var outFile = getNonConflictingFile(basePath, ".jpg");
+    // var cleanName = baseName.replace(/\s+/g, "");
+    var dupTag = getDupTag(outDir, baseName);
+    var basePath = outDir.fsName + "/" + baseName + dupTag  + "_전체시안(" + (part + 1) + ")";
+    /* 2) 같은 이름이 있으면 _1, _2 … 붙여 주는 헬퍼 */
+    function uniqueJpg(base) {
+      var safe = base.replace(/\s+/g, "-");
+      var f   = new File(safe + ".jpg");
+      var idx = 1;
+      while (f.exists) {                     // 이미 있으면
+        f = new File(base + "_" + idx + ".jpg");  // 뒤에 _1, _2 …
+        idx++;
+      }
+      return f;                              // 존재하지 않는 File 객체
+    }
+
+    /* 3) 최종 저장 경로 */
+    var outFile = uniqueJpg(basePath);        // ← 여기서 중복 해결
+
+    // var outFile = getNonConflictingFile(basePath, ".jpg");
 
     var jpg = new ExportOptionsJPEG();
     jpg.artBoardClipping = true;
