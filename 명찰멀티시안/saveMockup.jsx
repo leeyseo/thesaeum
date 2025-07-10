@@ -11,7 +11,13 @@
   //   ""
   // );
   // if (!input) return;
-  var input = decodeURI(doc.name).replace(/\.ai$/i, "");
+  var fullName = decodeURI(doc.name).replace(/\.ai$/i, "");
+  var match = fullName.match(/^(.*?_\d{8}-\d{7}(?:-\d+)?)/);
+  if (!match) {
+    alert("❌ 파일명에서 '_YYYYMMDD-#######' 형식을 찾을 수 없습니다.");
+    return;
+  }
+  var input = match[1];  // ← 여기까지 자른 결과만 사용됨
   
 
   var baseOrig = input;                    // 표시용(공백 포함)

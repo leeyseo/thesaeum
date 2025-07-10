@@ -45,7 +45,7 @@
     if (boards[i].idx !== i) { changed = true; break; }
   }
   if (!changed) {
-    alert("✅ 이미 올바른 순서입니다!");
+    // alert("✅ 이미 올바른 순서입니다!");
     return;
   }
 

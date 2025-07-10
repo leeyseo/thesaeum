@@ -12,13 +12,20 @@
   }
 
   // 🔤 파일명 입력
-  var inputName = prompt("PDF로 저장할 파일 이름을 입력하세요:", "");
-
-  // ⛔ 창 닫음 (null) → 저장 안 함
-  if (inputName === null) {
-    alert("❌ 저장이 취소되었습니다.");
+  // var inputName = prompt("PDF로 저장할 파일 이름을 입력하세요:", "");
+  var fullName = decodeURI(doc.name).replace(/\.ai$/i, "");
+  var matchFull = fullName.match(/^(.*?_\d{8}-\d{7}(?:-\d+)?)/);
+  if (!matchFull) {
+    alert("❌ 파일명에서 '_YYYYMMDD-#######' 형식을 찾지 못했습니다.");
     return;
   }
+  var inputName = matchFull[1];
+
+  // // ⛔ 창 닫음 (null) → 저장 안 함
+  // if (inputName === null) {
+  //   alert("❌ 저장이 취소되었습니다.");
+  //   return;
+  // }
 
   // 📄 PDF 옵션
   var pdfOpts = new PDFSaveOptions();
@@ -47,7 +54,7 @@
   }
 
   // ✅ 입력 정상 → 작업결과 + 작업물 모두 저장
-  var match = inputName.match(/_([0-9]{8}-[0-9]{7})$/);
+  var match = inputName.match(/_([0-9]{8}-[0-9]{7}(?:-\d+)?)/);
   if (!match) {
     alert("❌ 파일명 마지막에 '_YYYYMMDD-#######' 형식이 필요합니다.");
     return;

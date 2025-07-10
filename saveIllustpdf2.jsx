@@ -7,8 +7,15 @@
   function isEmpty(str){ return str===null || str.replace(/^\s+|\s+$/g,'')===""; }
 
   /* ──── 파일명 입력 ──── */
-  var inputName = prompt("PDF로 저장할 파일 이름을 입력하세요:", "");
-  if (inputName === null){ alert("❌ 저장이 취소되었습니다."); return; }
+  // var inputName = prompt("PDF로 저장할 파일 이름을 입력하세요:", "");
+  // if (inputName === null){ alert("❌ 저장이 취소되었습니다."); return; }
+  var fullName = decodeURI(doc.name).replace(/\.ai$/i, "");
+  var matchFull = fullName.match(/^(.*?_\d{8}-\d{7}(?:-\d+)?)/);
+  if (!matchFull) {
+    alert("❌ 파일명에서 '_YYYYMMDD-#######' 형식을 찾지 못했습니다.");
+    return;
+  }
+  var inputName = matchFull[1];
 
   /* ──── PDF 옵션 공통 ──── */
   var pdfOpts = new PDFSaveOptions();
@@ -50,7 +57,7 @@
   }
 
   /* ──── 폴더명 확인 & 생성 ──── */
-  var m = inputName.match(/_([0-9]{8}-[0-9]{7})$/);
+  var m = inputName.match(/_([0-9]{8}-[0-9]{7}(?:-\d+)?)/);
   if (!m){ alert("❌ 파일명 마지막에 '_YYYYMMDD-#######' 형식이 필요합니다."); return; }
   var folderName   = m[1];
   var resultFolder = new Folder("C:/work/" + folderName);

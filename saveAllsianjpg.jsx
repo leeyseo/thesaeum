@@ -7,8 +7,15 @@
   var doc = app.activeDocument;
 
   /* ── 1) 사용자 입력 ── */
-  var baseName = prompt("저장할 기준 파일명을 입력하세요:\n(예: 엣지 명찰_70x20_골드_옷핀+집게_..._20250704-0000621)", "");
-  if (!baseName) return;
+  // var baseName = prompt("저장할 기준 파일명을 입력하세요:\n(예: 엣지 명찰_70x20_골드_옷핀+집게_..._20250704-0000621)", "");
+  // if (!baseName) return;
+  var fullName = decodeURI(doc.name).replace(/\.ai$/i, "");
+  var matchFull = fullName.match(/^(.*?_\d{8}-\d{7}(?:-\d+)?)/);
+  if (!matchFull) {
+    alert("❌ 파일명에서 '_YYYYMMDD-#######' 형식을 찾지 못했습니다.");
+    return;
+  }
+  var baseName = matchFull[1];
 
   var bundleSizeStr = prompt("몇 개씩 JPG로 나눌지 입력하세요 (예: 10)", "10");
   if (!bundleSizeStr) return;
@@ -28,7 +35,8 @@
   if (tryPng.exists) imgFile = tryPng;
   else if (tryJpg.exists) imgFile = tryJpg;
 
-  var m = baseName.match(/_([0-9]{8}-[0-9]{7})$/);
+  var m = baseName.match(/_([0-9]{8}-[0-9]{7}(?:-\d+)?)/);
+  
   if (!m) {
     alert("❌ 파일명에 '_YYYYMMDD-#######' 형식이 없습니다.");
     return;

@@ -4,8 +4,15 @@
   var doc = app.activeDocument;
 
   /* ─────────────────── 1) 사용자 입력 ─────────────────── */
-  var baseName = prompt("저장용 기준 파일명을 입력하세요:", "");
-  if (!baseName) return;
+  // var baseName = prompt("저장용 기준 파일명을 입력하세요:", "");
+  // if (!baseName) return;
+  var fullName = decodeURI(doc.name).replace(/\.ai$/i, "");
+  var matchFull = fullName.match(/^(.*?_\d{8}-\d{7}(?:-\d+)?)/);
+  if (!matchFull) {
+    alert("❌ 파일명에서 '_YYYYMMDD-#######' 형식을 찾지 못했습니다.");
+    return;
+  }
+  var baseName = matchFull[1];
 
   var bundleSize = parseInt(prompt("JPG 하나당 디자인 세트 개수? (예: 10)", "10"), 10);
   if (isNaN(bundleSize) || bundleSize <= 0) { alert("❌ 숫자를 올바르게 입력"); return; }
@@ -19,7 +26,8 @@
                 : new File("C:/work/img/" + imgKey + ".jpg");
 
   /* 주문번호 = 파일명 맨 끝 "_YYYYMMDD-#######" 패턴 */
-  var m = baseName.match(/_([0-9]{8}-[0-9]{7})$/);
+  // var m = baseName.match(/_([0-9]{8}-[0-9]{7})$/);
+  var m = baseName.match(/_([0-9]{8}-[0-9]{7}(?:-\d+)?)/);
   if (!m) { alert("❌ '_YYYYMMDD-#######' 형식 누락"); return; }
   var folderId = m[1];
 

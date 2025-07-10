@@ -33,8 +33,14 @@
   //   ""
   // );
   // if (!full) return;
-  var full = decodeURI(doc.name).replace(/\.ai$/i, "");
-
+  // 자동 파일명 추출 (_YYYYMMDD-####### 또는 _YYYYMMDD-#######-## 까지만)
+  var docName = decodeURI(doc.name).replace(/\.ai$/i, "");
+  var fullMatch = docName.match(/^(.*?_([0-9]{8}-[0-9]{7}(?:-\d+)?))/);
+  if (!fullMatch) {
+    alert("❌ 파일명에서 유효한 주문번호를 찾지 못했습니다.");
+    return;
+  }
+  var full = fullMatch[1];  // ← 잘린 형태 예: "UV 사원증_54x86_..._20250623-0810000-07"
   /* 2) 제품코드·주문번호 추출 (예: ..._IMHC_3_20250623-0000362) */
   // var m = full.match(/_([A-Za-z0-9가-힣]+)_[0-9]+_([0-9]{8}-[0-9]{7})$/);
   // 변경 후
