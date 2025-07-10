@@ -6,11 +6,12 @@
   var doc = app.activeDocument;
 
   /* 1) 입력 */
-  var input = prompt(
-    "저장용 전체 이름 입력:\n(예: 엣지 명찰_70x20_골드_옷핀+집게_CW 청원케딜락_1_20250623-0001503)",
-    ""
-  );
-  if (!input) return;
+  // var input = prompt(
+  //   "저장용 전체 이름 입력:\n(예: 엣지 명찰_70x20_골드_옷핀+집게_CW 청원케딜락_1_20250623-0001503)",
+  //   ""
+  // );
+  // if (!input) return;
+  var input = decodeURI(doc.name).replace(/\.ai$/i, "");
   
 
   var baseOrig = input;                    // 표시용(공백 포함)

@@ -28,11 +28,12 @@
   if (doc.artboards.length < 2)   { alert("아트보드가 두 개 이상 필요합니다."); return; }
 
   /* 1) 파일명 입력 */
-  var full = prompt(
-    "저장용 전체 이름 입력:\n(예: 엣지 사원증_54x86_세로타공_IMHC_3_20250623-0000362)",
-    ""
-  );
-  if (!full) return;
+  // var full = prompt(
+  //   "저장용 전체 이름 입력:\n(예: 엣지 사원증_54x86_세로타공_IMHC_3_20250623-0000362)",
+  //   ""
+  // );
+  // if (!full) return;
+  var full = decodeURI(doc.name).replace(/\.ai$/i, "");
 
   /* 2) 제품코드·주문번호 추출 (예: ..._IMHC_3_20250623-0000362) */
   // var m = full.match(/_([A-Za-z0-9가-힣]+)_[0-9]+_([0-9]{8}-[0-9]{7})$/);
