@@ -180,24 +180,27 @@
   opt.qualitySetting=100; opt.resolution=600;
   opt.horizontalScale=opt.verticalScale=100;
   opt.antiAliasing=true; opt.optimized=true; opt.artBoardClipping=false;
-  
+  var SAVE_FIX = false; 
+  if (SAVE_FIX) {
+        /* 11) 확정용 JPG — '이름' 치환은 여기서만 */
+    var fixLayer = doc.layers.add(); fixLayer.name = "EXPORT_FIX";
 
-  /* 11) 확정용 JPG — '이름' 치환은 여기서만 */
-  var fixLayer = doc.layers.add(); fixLayer.name = "EXPORT_FIX";
+    /* exp 안의 디자인을 임시 레이어로 복사 */
+    for (var i = 0; i < exp.pageItems.length; i++)
+      exp.pageItems[i].duplicate(fixLayer, ElementPlacement.PLACEATEND);
 
-  /* exp 안의 디자인을 임시 레이어로 복사 */
-  for (var i = 0; i < exp.pageItems.length; i++)
-    exp.pageItems[i].duplicate(fixLayer, ElementPlacement.PLACEATEND);
+    /* 원본 exp는 잠시 숨기고, 복사본만 보이게 */
+    exp.visible = false;
+    replaceName(fixLayer);    
+    replaceAllImages(fixLayer);                   // ← 홍길동 치환
+    doc.exportFile(outFix, ExportType.JPEG, opt);
 
-  /* 원본 exp는 잠시 숨기고, 복사본만 보이게 */
-  exp.visible = false;
-  replaceName(fixLayer);    
-  replaceAllImages(fixLayer);                   // ← 홍길동 치환
-  doc.exportFile(outFix, ExportType.JPEG, opt);
+    /* 임시 레이어 제거, exp 다시 표시 */
+    fixLayer.remove();
+    exp.visible = true;
 
-  /* 임시 레이어 제거, exp 다시 표시 */
-  fixLayer.remove();
-  exp.visible = true;
+  }
+
 
   function composite(bgFile, ratio, offY, outFile, overlayText){
     if(!bgFile.exists){ alert("⚠ 배경 없음:\n"+bgFile.fsName); return; }
