@@ -52,8 +52,10 @@
   if (!mockBg.exists) { alert("❌ 목업 이미지 없음:\n" + mockBg.fsName); return; }
 
   /* 출력 폴더 */
-  var outDir = new Folder("C:/work/" + orderNo);
-  if (!outDir.exists) outDir.create();
+  // var outDir = new Folder("C:/work/" + orderNo);
+  var outDir = doc.fullName.parent; // 현재 문서 경로
+  // var outDir = new Folder(docPath + "/" + orderNo);
+  // if (!outDir.exists) outDir.create();
   function uniq(name){
     var f = new File(outDir + "/" + name + ".jpg"), n = 0;
     while (f.exists) { n++; f = new File(outDir + "/" + name + "_" + n + ".jpg"); }
@@ -177,39 +179,42 @@
 
   /* 4) 시안전송용 (배경 × 전경 PNG, Multiply) */
   composite(bgImg, tmpPng, siAnFile, 1, 0.1, null, null, null, null, "GmarketSans");
+  
 
-  /* 5) 확정형 (이름 치환) */
-  var finalName = "홍길동";   // ← 필요시 prompt 로 변경
+  // /* 5) 확정형 (이름 치환) */
+  // var finalName = "홍길동";   // ← 필요시 prompt 로 변경
 
-  // 새 문서 (원본 아트보드와 동일 크기)
-  var ab2 = doc.artboards[0].artboardRect;
-  var AW2 = ab2[2] - ab2[0], AH2 = ab2[1] - ab2[3];
-  var tempDoc = app.documents.add(DocumentColorSpace.RGB, AW2, AH2);
-  tempDoc.artboards[0].artboardRect = [0, AH2, AW2, 0];
+  // // 새 문서 (원본 아트보드와 동일 크기)
+  // var ab2 = doc.artboards[0].artboardRect;
+  // var AW2 = ab2[2] - ab2[0], AH2 = ab2[1] - ab2[3];
+  // var tempDoc = app.documents.add(DocumentColorSpace.RGB, AW2, AH2);
+  // tempDoc.artboards[0].artboardRect = [0, AH2, AW2, 0];
 
-  // 복사 & 붙여넣기
-  doc.activate(); doc.artboards.setActiveArtboardIndex(0);
-  app.executeMenuCommand("deselectall");
-  doc.selectObjectsOnActiveArtboard(); app.copy();
-  tempDoc.activate(); app.paste();
+  // // 복사 & 붙여넣기
+  // doc.activate(); doc.artboards.setActiveArtboardIndex(0);
+  // app.executeMenuCommand("deselectall");
+  // doc.selectObjectsOnActiveArtboard(); app.copy();
+  // tempDoc.activate(); app.paste();
+  
 
-  // 텍스트 치환 (이름_* 변수)
-  function replaceNameIn(container){
-    for (var i = 0; i < container.pageItems.length; i++){
-      var item = container.pageItems[i];
-      if (item.typename === "GroupItem") replaceNameIn(item);
-      else if (item.typename === "TextFrame") {
-        if (item.name && item.name.indexOf("이름") !== -1) {
-          item.contents = finalName;
-        }
-      }
-    }
-  }
-  replaceNameIn(tempDoc);
+  // // 텍스트 치환 (이름_* 변수)
+  // function replaceNameIn(container){
+  //   for (var i = 0; i < container.pageItems.length; i++){
+  //     var item = container.pageItems[i];
+  //     if (item.typename === "GroupItem") replaceNameIn(item);
+  //     else if (item.typename === "TextFrame") {
+  //       if (item.name && item.name.indexOf("이름") !== -1) {
+  //         item.contents = finalName;
+          
+  //       }
+  //     }
+  //   }
+  // }
+  // replaceNameIn(tempDoc);
 
-  // JPG 저장
-  tempDoc.exportFile(hwakFile, ExportType.JPEG, jOpt);
-  tempDoc.close(SaveOptions.DONOTSAVECHANGES);
+  // // JPG 저장
+  // tempDoc.exportFile(hwakFile, ExportType.JPEG, jOpt);
+  // tempDoc.close(SaveOptions.DONOTSAVECHANGES);
 
   /* 6) 시안전송 목업용 (시안전송용 JPG + 목업 배경) */
   var userText = prompt("시안전송 목업 JPG에 넣을 텍스트를 입력하세요:", "");

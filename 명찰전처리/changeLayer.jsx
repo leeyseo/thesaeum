@@ -10,6 +10,13 @@
   var doc = app.activeDocument,
       N   = doc.artboards.length;
 
+  /* ── 이미 Artboard_ 레이어가 있으면 작업 취소 ── */
+  for (var i = 0; i < doc.layers.length; i++) {
+    if (doc.layers[i].name.indexOf("Artboard_") !== -1) {
+      return;
+    }
+  }
+
   /* 0) 기존 레이어 목록 백업 & 잠금 해제 -------------------------------- */
   var oldLayers = [];
   for (var i = 0; i < doc.layers.length; i++) {

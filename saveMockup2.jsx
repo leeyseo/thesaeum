@@ -45,7 +45,7 @@
   // var m = full.match(/_([A-Za-z0-9가-힣]+)_[0-9]+_([0-9]{8}-[0-9]{7})$/);
   // 변경 후
   var m = full.match(
-    /_([A-Za-z0-9가-힣]+)_[0-9]+_([0-9]{8}-[0-9]{7}(?:-\d+)?)$/
+    /_(.*?)_[0-9]+_([0-9]{8}-[0-9]{7}(?:-\d+)?)$/
   );
   if (!m){ alert("❌ 파일명에서 제품코드·주문번호를 찾지 못했습니다."); return; }
   // var productCode = m[1];      // IMHC
@@ -53,7 +53,8 @@
 
   /* 3) 출력 폴더 & 파일명 */
   var safeName = full.replace(/ /g,"-");
-  var dir = new Folder("C:/work/" + orderNo); if(!dir.exists)dir.create();
+  // var dir = new Folder("C:/work/" + orderNo); if(!dir.exists)dir.create();
+  var dir = doc.fullName.parent;
   function uniq(stem){ var f=new File(dir+"/"+stem+".jpg"),i=0;
     while(f.exists){ i++; f=new File(dir+"/"+stem+"_"+i+".jpg"); } return f; }
 
@@ -218,6 +219,7 @@
     var pct = ratio * Math.min(bgW/dW, bgH/dH) * 100;
     t1.resize(pct,pct,true,true,true,true,true);
     t2.resize(pct,pct,true,true,true,true,true);
+
 
     /* D) GAP 재조정 */
     var nt1 = t1.visibleBounds, nt2 = t2.visibleBounds;
