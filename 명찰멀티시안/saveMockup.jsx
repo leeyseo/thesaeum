@@ -3,14 +3,10 @@
 
   /* 0) 문서 검사 */
   if (app.documents.length === 0) { alert("열린 문서가 없습니다."); return; }
+  // if (doc.dataSets.length === 0) { alert("데이터셋이 없습니다."); return; }
   var doc = app.activeDocument;
+  if (doc.dataSets.length === 0) { alert("데이터셋이 없습니다."); return; }
 
-  /* 1) 입력 */
-  // var input = prompt(
-  //   "저장용 전체 이름 입력:\n(예: 엣지 명찰_70x20_골드_옷핀+집게_CW 청원케딜락_1_20250623-0001503)",
-  //   ""
-  // );
-  // if (!input) return;
   var fullName = decodeURI(doc.name).replace(/\.ai$/i, "");
   var match = fullName.match(/^(.*?_\d{8}-\d{7}(?:-\d+)?)/);
   if (!match) {

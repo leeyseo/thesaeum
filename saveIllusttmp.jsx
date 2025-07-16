@@ -5,7 +5,9 @@
     alert("❌ 열려 있는 AI 문서가 없습니다.");
     return;
   }
+  // if (doc.dataSets.length === 0) { alert("데이터셋이 없습니다."); return; }
   var doc = app.activeDocument;
+  if (doc.dataSets.length === 0) { alert("데이터셋이 없습니다."); return; }
 
   /* 1) 원본 파일 경로·이름 파싱 */
   var orig     = new File(doc.fullName);          // 전체 경로

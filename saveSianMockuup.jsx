@@ -1,114 +1,80 @@
-/**
- * 0 ·1 / 2 ·3 … 식으로 붙이거나
- * 아트보드별 단독 JPG를 같은 폴더에 저장
- *
- * ⚠︎ AI 파일은 따로 저장하지 않습니다
- */
 (function () {
-
-  /* 0) 문서 검사 -------------------------------------------------- */
+  /* ── 0) 문서 검사 ────────────────────────────────────────── */
   if (app.documents.length === 0) { alert("열린 문서가 없습니다."); return; }
   var doc      = app.activeDocument;
-  var numAB    = doc.artboards.length;
-  if (numAB === 0) { alert("아트보드가 없습니다."); return; }
+  var abTotal  = doc.artboards.length;
+  if (abTotal === 0) { alert("아트보드가 없습니다."); return; }
 
-  /* 1) 기본 정보 --------------------------------------------------- */
-  var docPath  = doc.fullName.parent;     // 저장 경로 = 현재 .ai 폴더
-  var baseName = decodeURI(doc.name).replace(/\.ai$/i, ""); // .ai 이름
-  var isCard   = (baseName.indexOf("사원증") !== -1);        // “사원증” 여부
-  var GAP_PT   = 10;     // 앞·뒤 간격(pt)
+  var baseName = decodeURI(doc.name).replace(/\.ai$/i, "");
+  var GAP_PT   = 10;          // 아트보드 간격
 
-  /* 2) 공통 JPG 옵션 ---------------------------------------------- */
-  var jpgOpt = new ExportOptionsJPEG();
-  jpgOpt.qualitySetting   = 100;
-  jpgOpt.resolution       = 600;
-  jpgOpt.horizontalScale  = jpgOpt.verticalScale = 100;
-  jpgOpt.optimized        = true;
-  jpgOpt.antiAliasing     = true;
-  jpgOpt.artBoardClipping = false;   // 새 문서 전체 저장
-
-  /* 3-A) 사원증이 “아닌” 경우 : 아트보드마다 1장 -------------------- */
-  if (!isCard) {
-
-    for (var i = 0; i < numAB; i++) {
-      doc.artboards.setActiveArtboardIndex(i);
-      app.executeMenuCommand("deselectall");
-
-      var stem = baseName + "(" + (i + 1) + ")";
-      var out  = new File(docPath + "/" + stem + ".jpg");
-      var d = 0;
-      while (out.exists) out = new File(docPath + "/" + stem + "_" + (++d) + ".jpg");
-
-      doc.exportFile(out, ExportType.JPEG, jpgOpt);
-    }
-    return;
+  /* ── 1) 각 아트보드 크기 수집 ---------------------------------- */
+  var widths  = [], heights = [];
+  for (var i = 0; i < abTotal; i++) {
+    var ab = doc.artboards[i].artboardRect;     // [L,T,R,B]
+    widths.push( ab[2] - ab[0] );
+    heights.push( ab[1] - ab[3] );
+  }
+  var maxW   = Math.max.apply(null, widths);
+  var totalH = 0;
+  for (var h = 0; h < heights.length; h++) {
+    totalH += heights[h];
+    if (h < heights.length - 1) totalH += GAP_PT;
   }
 
-  /* 3-B) 사원증인 경우 : 연속 2면 묶음 ------------------------------ */
+  /* ── 2) 새 문서 생성 ------------------------------------------- */
+  var comp = app.documents.add(DocumentColorSpace.RGB, maxW, totalH);
+  comp.artboards[0].artboardRect = [0, totalH, maxW, 0];
 
-  /* 보조 : 아트보드 srcIdx를 tmpDoc으로 복사 후 (x,y) 맞춤 */
-  function pasteBoard(srcIdx, tmpDoc, toX, toTopY)
-  {
+  /* 복사‑붙여넣기 & 위치 맞추기 */
+  function pasteBoard(srcIdx, destDoc, toX, toTopY) {
     doc.activate();
     doc.artboards.setActiveArtboardIndex(srcIdx);
     app.executeMenuCommand("deselectall");
     doc.selectObjectsOnActiveArtboard();
     app.copy();
 
-    tmpDoc.activate();
+    destDoc.activate();
     app.executeMenuCommand("pasteInPlace");
 
-    /* 선택 전체 바운드 */
-    var sel = tmpDoc.selection;
-    var L =  1e10, T = -1e10, R = -1e10, B =  1e10;
+    var sel = destDoc.selection;
+    var L = 1e10, T = -1e10;
     for (var s = 0; s < sel.length; s++) {
-      var vb = sel[s].visibleBounds;      // [L,T,R,B]
+      var vb = sel[s].visibleBounds;   // [L,T,R,B]
       if (vb[0] < L) L = vb[0];
       if (vb[1] > T) T = vb[1];
-      if (vb[2] > R) R = vb[2];
-      if (vb[3] < B) B = vb[3];
     }
-    var dx = toX  - L;
-    var dy = toTopY - T;
+    var dx = toX - L,
+        dy = toTopY - T;
     for (var s = 0; s < sel.length; s++) sel[s].translate(dx, dy);
     app.executeMenuCommand("deselectall");
-    return [L + dx, T + dy, R + dx, B + dy];     // 이동 후 [L,T,R,B]
   }
 
-  var pairNo = 1;
-  for (var i = 0; i < numAB; i += 2, pairNo++) {
-
-    /* 앞면 크기 */
-    var ab1 = doc.artboards[i].artboardRect;
-    var w1  = ab1[2] - ab1[0],  h1 = ab1[1] - ab1[3];
-
-    /* 뒷면 크기 (있을 때) */
-    var hasBack = (i + 1 < numAB);
-    var w2 = 0, h2 = 0, ab2 = null;
-    if (hasBack) {
-      ab2 = doc.artboards[i + 1].artboardRect;
-      w2  = ab2[2] - ab2[0];  h2 = ab2[1] - ab2[3];
-    }
-
-    /* 새 문서 크기 */
-    var newW = w1 + (hasBack ? GAP_PT + w2 : 0);
-    var newH = (h1 > h2) ? h1 : h2;
-
-    var tmp = app.documents.add(DocumentColorSpace.RGB, newW, newH);
-    tmp.artboards[0].artboardRect = [0, newH, newW, 0];
-
-    /* 앞·뒤 붙여넣기 */
-    var vb1 = pasteBoard(i, tmp, 0, newH);
-    if (hasBack) pasteBoard(i + 1, tmp, vb1[2] + GAP_PT, newH);
-
-    /* 파일명 & 중복 처리 */
-    var stem = baseName + "(" + pairNo + ")";
-    var out  = new File(docPath + "/" + stem + ".jpg");
-    var d = 0;
-    while (out.exists) out = new File(docPath + "/" + stem + "_" + (++d) + ".jpg");
-
-    tmp.exportFile(out, ExportType.JPEG, jpgOpt);
-    tmp.close(SaveOptions.DONOTSAVECHANGES);
+  /* ── 3) 1 열 배치 ---------------------------------------------- */
+  var cursorY = 0;                       // 누적 높이 (위→아래)
+  for (var idx = 0; idx < abTotal; idx++) {
+    var topY = totalH - cursorY;         // Illustrator 좌표계: 위쪽 T 값
+    pasteBoard(idx, comp, 0, topY);
+    cursorY += heights[idx] + GAP_PT;
   }
 
+  /* ── 4) JPG 내보내기 ------------------------------------------- */
+  var jpgOpt = new ExportOptionsJPEG();
+  jpgOpt.qualitySetting   = 100;
+  jpgOpt.resolution       = 600;
+  jpgOpt.horizontalScale  = jpgOpt.verticalScale = 100;
+  jpgOpt.optimized        = true;
+  jpgOpt.antiAliasing     = true;
+  jpgOpt.artBoardClipping = false;
+
+  var outFolder = doc.fullName.parent;
+  var stem      = baseName;
+  var outFile   = new File(outFolder + "/" + stem + ".jpg");
+  var dup = 0;
+  while (outFile.exists) outFile = new File(outFolder + "/" + stem + "_" + (++dup) + ".jpg");
+
+  comp.exportFile(outFile, ExportType.JPEG, jpgOpt);
+  comp.close(SaveOptions.DONOTSAVECHANGES);
+
+  // alert("✅ 모든 아트보드를 1 열로 배치한 JPG 저장 완료:\n" + decodeURI(outFile.fsName));
 })();

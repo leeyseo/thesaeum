@@ -2,6 +2,13 @@
   var doc = app.activeDocument;
   if (!doc) { alert("문서가 없습니다."); return; }
   if (doc.dataSets.length === 0) { alert("데이터셋이 없습니다."); return; }
+    // ✅ 이미 있으면 경고 후 종료
+  try {
+    if (doc.layers.getByName("출력_디자인")) {
+      // alert("❌ 이미 '출력_디자인' 레이어가 존재합니다.\n작업을 취소합니다.");
+      return;
+    }
+  } catch (_) {}
 
   app.executeMenuCommand("unlockAll");
   app.executeMenuCommand("showAll");
@@ -12,7 +19,7 @@
       GAP  = 50;
 
   for (var i = 0; i < doc.layers.length; i++) doc.layers[i].visible = false;
-  try { doc.layers.getByName("출력_디자인").remove(); } catch (_) {}
+
   var outLayer = doc.layers.add(); outLayer.name = "출력_디자인";
 
   var layVar = null, varPairs = [];

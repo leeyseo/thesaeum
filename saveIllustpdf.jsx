@@ -5,6 +5,16 @@
   }
 
   var doc = app.activeDocument;
+  // ★ 현재 문서(.ai)가 저장된 폴더
+  var docFolder;
+  try {
+    docFolder = doc.fullName.parent;
+  } catch (e) {
+    alert("❌ 먼저 문서를 저장한 뒤 다시 실행하세요.");
+    return;
+  }
+
+  
 
   // 🔧 ES3 호환 공백 제거 함수 (trim 대체)
   function isEmpty(str) {
@@ -20,6 +30,7 @@
     return;
   }
   var inputName = matchFull[1];
+  
 
   // // ⛔ 창 닫음 (null) → 저장 안 함
   // if (inputName === null) {
@@ -62,9 +73,7 @@
 
   var folderName = match[1];
 
-  // 📁 작업결과 폴더 생성
-  var resultFolder = new Folder("C:/work/" + folderName);
-  if (!resultFolder.exists) resultFolder.create();
+  var resultFolder = docFolder;
 
   // 중복 방지 파일 생성 함수
   function getUniqueFile(folder, baseName) {
@@ -77,14 +86,13 @@
     return f;
   }
 
-  // 1️⃣ 작업결과 폴더에 중복 방지 저장
+  // 1️⃣ 작업결과 폴더에 중복 방지 저장 (doc.saveAs는 딱 1번만)
   var file1 = getUniqueFile(resultFolder, inputName);
   doc.saveAs(file1, pdfOpts);
 
-  // 2️⃣ 작업물 폴더에 원래 이름으로 저장 (중복 방지 안 함)
+  // 2️⃣ 작업물 폴더에는 파일 복사
   var file2 = new File(workFolder.fsName + "/" + inputName + ".pdf");
-  doc.saveAs(file2, pdfOpts);
-
+  file1.copy(file2);  // ← 복사만 함
   // ✅ 완료 메시지
   // alert("✅ PDF 저장 완료:\n1) " + file1.fsName + "\n2) " + file2.fsName);
 })();

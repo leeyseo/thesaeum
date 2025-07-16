@@ -8,6 +8,8 @@
   var doc = app.activeDocument;
   if (!doc) { alert("문서가 없습니다."); return; }
 
+
+
   /* ── 0. 전역 잠금·숨김 해제 ── */
   app.executeMenuCommand("unlockAll");
   app.executeMenuCommand("showAll");
@@ -24,7 +26,7 @@
   }
 
   /* 이미 매핑돼 있으면 아무것도 하지 않음 */
-  try { if (layVar.pageItems.length > 0) { alert("이미 매핑돼 있습니다."); return; } }
+  try { if (layVar.pageItems.length > 0) { ; return; } }
   catch (_) {}   // 일부 버전 예외 무시
 
   /* ── 2. 레이어 “레이어변수” 준비 (중복 생성 X) ── */

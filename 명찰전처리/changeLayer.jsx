@@ -47,11 +47,15 @@
     dest.visible = true;
     doc.activeLayer = dest;
 
-    // Cut → Paste In Place
-    app.executeMenuCommand("cut");
-    app.executeMenuCommand("pasteInPlace");
-
-    moved += doc.selection.length;   // 방금 붙여넣은 개수
+    // move() 방식으로 변수 매핑 유지하며 이동
+    var sel = doc.selection;
+    for (var s = 0; s < sel.length; s++) {
+      var item = sel[s];
+      try {
+        item.move(dest, ElementPlacement.PLACEATEND);
+        moved++;
+      } catch (e) {}
+    }
   }
 
   /* 2) 기존 레이어 싹 삭제 ------------------------------------------- */

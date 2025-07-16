@@ -202,10 +202,15 @@
     var expAB = doc.artboards.add([ORIGIN_X, 0, ORIGIN_X + totW, -totH]);
     var expIdx = doc.artboards.length - 1;
 
-    var outDir = new Folder("C:/work/" + folderId);
-    if (!outDir.exists) outDir.create();
-    // var basePath = outDir.fsName + "/" + baseName + "_전체시안(" + (part + 1) + ")";
-    // var cleanName = baseName.replace(/\s+/g, "");
+    // var outDir = new Folder("C:/work/" + folderId);
+    // if (!outDir.exists) outDir.create();
+    var outDir;
+    try {
+      outDir = doc.fullName.parent;
+    } catch (e) {
+      alert("❌ 먼저 문서를 저장한 뒤 다시 실행하세요.");
+      return;
+    }
     var dupTag = getDupTag(outDir, baseName);
     var basePath = outDir.fsName + "/" + baseName + dupTag  + "_전체시안(" + (part + 1) + ")";
     /* 2) 같은 이름이 있으면 _1, _2 … 붙여 주는 헬퍼 */
