@@ -13,6 +13,7 @@
     alert("❌ 먼저 문서를 저장한 뒤 다시 실행하세요.");
     return;
   }
+  if (doc.dataSets.length === 0) { alert("데이터셋이 없습니다."); return; }
 
   
 
