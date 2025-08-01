@@ -18,7 +18,6 @@
   /* 목업 텍스트 */
   var TEXT_FONT   = "GmarketSans"; // 폰트 이름
   var TEXT_SIZE   = 20;            // pt
-  // var CODE_OFF    = [  340, -80 ]; // BG 좌상단 기준 (dx, dy)
   var ORDER_OFF   = [  340, -165 ];
   /* ────────────────────────────── */
 
@@ -27,13 +26,13 @@
   var doc = app.activeDocument;
   if (doc.artboards.length < 2)   { alert("아트보드가 두 개 이상 필요합니다."); return; }
 
-  /* 1) 파일명 입력 */
-  // var full = prompt(
-  //   "저장용 전체 이름 입력:\n(예: 엣지 사원증_54x86_세로타공_IMHC_3_20250623-0000362)",
-  //   ""
-  // );
-  // if (!full) return;
-  // 자동 파일명 추출 (_YYYYMMDD-####### 또는 _YYYYMMDD-#######-## 까지만)
+
+  try {
+    var re = doc.rasterEffectSettings;
+    re.resolution = 600;   // 300~600 권장
+    doc.rasterEffectSettings = re;
+  } catch (e) {}
+
   var docName = decodeURI(doc.name).replace(/\.ai$/i, "");
   var fullMatch = docName.match(/^(.*?_([0-9]{8}-[0-9]{7}(?:-\d+)?))/);
   if (!fullMatch) {
@@ -177,7 +176,7 @@
 
   /* 10) Export 옵션 공통 */
   var opt=new ExportOptionsJPEG();
-  opt.qualitySetting=100; opt.resolution=600;
+  opt.qualitySetting=100; opt.resolution=1200;
   opt.horizontalScale=opt.verticalScale=100;
   opt.antiAliasing=true; opt.optimized=true; opt.artBoardClipping=false;
   var SAVE_FIX = false; 
@@ -198,84 +197,116 @@
     /* 임시 레이어 제거, exp 다시 표시 */
     fixLayer.remove();
     exp.visible = true;
-
   }
 
+  // ▼ 최소 픽셀폭 보장 (+ 800% 초과 시 지오메트리 스케일 fallback)
+  function ensureMinPixelWidthPlus(layerToExport, exportOpt, minPx) {
+    var b = bounds(layerToExport); if (!b) return {usedGeom:false};
+    var w_pt = b[2] - b[0];
+    var basePx = (w_pt / 72) * exportOpt.resolution * (exportOpt.horizontalScale / 100);
+    var needScale = Math.ceil(100 * (minPx / basePx)); // 필요한 export scale(%)
 
-  function composite(bgFile, ratio, offY, outFile, overlayText){
-    if(!bgFile.exists){ alert("⚠ 배경 없음:\n"+bgFile.fsName); return; }
-
-    /* A) 배경 */
-    var bgL = doc.layers.add(); bgL.name = "BG_TEMP";
-    var bg  = bgL.placedItems.add(); bg.file = bgFile;
-    var bgVB = bg.visibleBounds;               // [L,T,R,B]
-    var bgW  = bgVB[2]-bgVB[0], bgH = bgVB[1]-bgVB[3];
-
-    /* B) 디자인 복사본 (앞·뒤) */
-    var tmp = doc.layers.add(); tmp.name = "EXP_TMP";
-    var t1 = g1.duplicate(tmp, ElementPlacement.PLACEATEND);
-    var t2 = g2.duplicate(tmp, ElementPlacement.PLACEATEND);
-    exp.visible = false;
-
-    /* C) 스케일 */
-    var dVB = bounds(tmp), dW = dVB[2]-dVB[0], dH = dVB[1]-dVB[3];
-    var pct = ratio * Math.min(bgW/dW, bgH/dH) * 100;
-    t1.resize(pct,pct,true,true,true,true,true);
-    t2.resize(pct,pct,true,true,true,true,true);
-
-
-    /* D) GAP 재조정 */
-    var nt1 = t1.visibleBounds, nt2 = t2.visibleBounds;
-    t2.translate(GAP - (nt2[0]-nt1[2]), 0);
-
-    /* E) 중앙 정렬 + offY */
-    var cmb = bounds(tmp);
-    var dx = (bgVB[0]+bgVB[2])/2 - (cmb[0]+cmb[2])/2;
-    var dy = (bgVB[1]+bgVB[3])/2 - (cmb[1]+cmb[3])/2 + offY;
-    t1.translate(dx,dy); t2.translate(dx,dy);
-
-    /* F) 입력 텍스트 오버레이 (빨간색, 중앙) */
-    var txtL = null;
-    if (overlayText && overlayText !== "") {
-      txtL = doc.layers.add(); txtL.name = "TEXT_TMP";
-      var tf = txtL.textFrames.add();
-      tf.contents = overlayText;
-
-      /* 글꼴·크기·색상 */
-      try { tf.textRange.characterAttributes.textFont = app.textFonts.getByName(TEXT_FONT); }
-      catch (_) {}
-      tf.textRange.characterAttributes.size = TEXT_SIZE;
-
-      var red = new RGBColor(); red.red = 255; red.green = 0; red.blue = 0;
-      tf.textRange.characterAttributes.fillColor = red;
-      tf.paragraphs[0].paragraphAttributes.justification = Justification.CENTER;
-
-
-
-        /* ↓ 2) 위치 조정 : 왼쪽 100pt, 아래 140pt */
-      var x = (bgVB[0] + bgVB[2]) / 2 - 280;               // 가운데에서 ←100
-      var y = bgVB[1] + ORDER_OFF[1] - 800;                // 기존보다 ↓140
-      tf.position = [ x, y ];
-      /* 배경 중앙 기준 ORDER_OFF[1] 아래 위치 */
-      // tf.position = [ (bgVB[0]+bgVB[2]) / 2, bgVB[1] + ORDER_OFF[1] ];
-      txtL.zOrder(ZOrderMethod.BRINGTOFRONT);
+    if (needScale <= 800) {
+      if (needScale < 100) needScale = 100;
+      exportOpt.horizontalScale = exportOpt.verticalScale = needScale;
+      return {usedGeom:false};
     }
 
-    /* G) 내보내기 */
-    bgL.zOrder(ZOrderMethod.SENDTOBACK);
-    doc.exportFile(outFile, ExportType.JPEG, opt);
+    // ── 800% 초과: 임시 레이어에 복제해서 오브젝트 자체를 키운 뒤 800%로 내보내기
+    var tmp = doc.layers.add(); tmp.name = "__TMP_EXPORT_BIG__";
+    for (var i = 0; i < layerToExport.pageItems.length; i++) {
+      layerToExport.pageItems[i].duplicate(tmp, ElementPlacement.PLACEATEND);
+    }
 
-    /* H) 정리 */
-    if (txtL) txtL.remove();
-    tmp.remove(); bgL.remove(); exp.visible = true;
+    // 기존 레이어는 숨기고, 임시 레이어만 보이게
+    var prevVis = layerToExport.visible;
+    layerToExport.visible = false;
+    tmp.visible = true;
+
+    // 필요한 총 배율 = needScale/100. export는 8배까지만 되니 나머지는 지오메트리로
+    var geomScale = Math.ceil((needScale / 800) * 100); // % 단위
+    // 임시 레이어의 모든 아이템 확대
+    for (var j = 0; j < tmp.pageItems.length; j++) {
+      tmp.pageItems[j].resize(geomScale, geomScale, true, true, true, true, true);
+    }
+
+    // export 스케일은 800%로 고정
+    exportOpt.horizontalScale = exportOpt.verticalScale = 800;
+
+    return {usedGeom:true, tmpLayer: tmp, restore: function() {
+      try { tmp.remove(); } catch(e){}
+      layerToExport.visible = prevVis;
+    }};
   }
 
-
-
   /* 12) 시안전송용 & 목업용 */
-  var userText = prompt("목업 JPG에 넣을 텍스트를 입력하세요:", "");
+  /* 배경 없이 EXPORT_LAYER 그대로 내보내기 */
+  var userText = prompt("시안전송 JPG에 넣을 텍스트(없으면 빈칸):", "");
   if (userText === null) userText = "";
-  composite(bgMock, MOCK_SCALE, MOCK_OFFSET_Y, outMock, userText);
+
+  // (선택) 텍스트 오버레이: exp의 합성 바운더리 기준 중앙 하단에 배치
+  var txtLayer = null;
+  if (userText) {
+    var cmb = bounds(exp); // [L,T,R,B]
+    txtLayer = doc.layers.add(); txtLayer.name = "TEXT_TMP";
+    var tf = txtLayer.textFrames.add();
+    tf.contents = userText;
+    try { tf.textRange.characterAttributes.textFont = app.textFonts.getByName(TEXT_FONT); } catch(_){}
+    tf.textRange.characterAttributes.size = TEXT_SIZE;
+    var red = new RGBColor(); red.red=255; red.green=0; red.blue=0;
+    tf.textRange.characterAttributes.fillColor = red;
+    tf.paragraphs[0].paragraphAttributes.justification = Justification.CENTER;
+
+    // 텍스트 실제 폭(포인트 단위) 측정: 폰트/크기/트래킹 반영
+    function measureTextWidthPt(str, fontName, sizePt, tracking) {
+      var doc = app.activeDocument;
+
+      // 임시 레이어/포인트 텍스트 생성
+      var tmpLayer = doc.layers.add(); tmpLayer.name = "__TMP_MEASURE__";
+      var tf = tmpLayer.textFrames.add();
+      tf.kind = TextType.POINTTEXT;                  // 반드시 포인트 텍스트
+      tf.contents = (str || "").replace(/[\r\n]+/g, " "); // 줄바꿈 제거(단일 줄 측정)
+
+      // 스타일 적용
+      var tr = tf.textRange;
+      if (fontName) { try { tr.characterAttributes.textFont = app.textFonts.getByName(fontName); } catch(e) {} }
+      if (sizePt)   { tr.characterAttributes.size = sizePt; }
+      if (tracking != null) { tr.characterAttributes.tracking = tracking; } // 천분의 1em 단위
+
+      // 폭 갱신 후 측정
+      app.redraw();
+      var gb = tf.geometricBounds;                   // [L, T, R, B]
+      var widthPt = gb[2] - gb[0];
+
+      // 정리
+      try { tmpLayer.remove(); } catch(e) {}
+      return widthPt;                                // pt 단위
+    }
+    
+
+    // 중앙 x, 디자인 하단 B 기준 아래쪽으로 약간 내림(필요시 수치 조정)
+    // g1, g2는 앞에서 만든 두 그룹(앞/뒤 디자인)
+    var vb1 = g1.visibleBounds; // [L,T,R,B]
+    var vb2 = g2.visibleBounds; // [L,T,R,B]
+
+    // 가로: 두 디자인 사이 ‘틈’의 정중앙
+    var midBetween = (vb1[2] + vb2[0]) / 2;
+    var w = measureTextWidthPt(userText, TEXT_FONT, TEXT_SIZE); 
+
+    // 세로: 두 디자인 중 더 아래쪽(작은 값)의 바닥보다 40pt 아래
+    var bottom = Math.min(vb1[3], vb2[3]);
+
+    tf.position = [ midBetween-(w/2), bottom - 40 ];
+    txtLayer.zOrder(ZOrderMethod.BRINGTOFRONT);
+  }
+
+  // JPEG 옵션은 이미 opt 설정됨(artBoardClipping=false)
+  // → 문서의 보이는 객체 경계로 2개 디자인이 한 장에 저장됨
+  var ctx = ensureMinPixelWidthPlus(exp, opt, 9000);
+  doc.exportFile(outMock, ExportType.JPEG, opt);
+  if (ctx.usedGeom) { ctx.restore(); }
+
+  if (txtLayer) txtLayer.remove();
 
   try { exp.remove(); } catch (_) {}
 
