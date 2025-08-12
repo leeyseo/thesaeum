@@ -13,32 +13,43 @@
     return;
   }
   var input = match[1];  // ← 여기까지 자른 결과만 사용됨
-  
+  var marginPct = 98; 
+  var yShiftVal = 0.10;
 
   var baseOrig = input;                    // 표시용(공백 포함)
   var basePath = input.replace(/ /g, "-"); // 경로·파일명용
   /* ❶ ‘뱃지’ 여부에 따라 허용 필드 수가 다름 */
+  var isCarrierTag = /캐리어네임택/i.test(baseOrig); 
 
 
   var parts = baseOrig.split("_");
 
   var isBadge = parts[0].indexOf("뱃지") !== -1;
   /* ❷ 형식 검사 */
-  if ( (!isBadge && parts.length < 7) ||   // 일반 = 7필드 이상
-      ( isBadge && parts.length < 6) ) {  // 뱃지 = 6필드 이상
-    alert("❌ 입력 형식 오류"); return;
+  /* ❷ 형식 검사 */
+  if ( (!isBadge  && !isCarrierTag && parts.length < 7) ||   // 일반 명찰 ≥7
+      ( (isBadge || isCarrierTag) && parts.length < 6) ) {  // 뱃지·캐리어네임택 ≥6
+    alert("❌ 입력 형식 오류");
+    return;
   }
   /* ❸ 필드 해석 */
-  if(isBadge){var orderNo  = parts[ parts.length - 1 ];   }else{
-    var orderNo  = parts[6];  
-  }
 
   var imgKey   = (parts[0].indexOf("엣지") !== -1 ? "엣지_" : "") +
                  parts[1] + "_" + parts[2];       // 배경키
 
-  /* 배경 이미지 & 목업 */
-  var bgImg  = new File("C:/work/img/" + imgKey + ".png");
-  if (!bgImg.exists) { alert("❌ 배경 이미지 없음:\n" + bgImg.fsName); return; }
+  if (imgKey.indexOf("66x16") !== -1) {
+    marginPct = 90;                   // 규격·색상 일치 ➜ 90 %
+    yShiftVal -= 0.08;
+  }
+
+    /* 배경 이미지 & 목업 */
+  if (!isCarrierTag) {                     // ← 캐리어네임택이면 배경을 아예 안 읽음
+    var bgImg  = new File("C:/work/img/" + imgKey + ".png");
+    if (!bgImg.exists) {
+      alert("❌ 배경 이미지 없음:\n" + bgImg.fsName);
+      return;
+    }
+  }
   var mockBg = new File("C:/work/img/목업.png");
   if (!mockBg.exists) { alert("❌ 목업 이미지 없음:\n" + mockBg.fsName); return; }
 
@@ -201,7 +212,7 @@
     nd.artboards[0].artboardRect = [0, H, W, 0];
 
     // 전경 스케일 & 위치
-    var sPct = (W * ratio / f.width) * 98;
+    var sPct = (W * ratio / f.width) * marginPct;
     f.resize(sPct, sPct);
     var spare = H - f.height;
     f.position = [(W - f.width) / 2, H - (spare / 2) - (spare * yShift)];
@@ -264,7 +275,24 @@
     doc.exportFile(tmpPng, ExportType.PNG24, pOpt);
 
     var siAnFile = new File(Folder.temp + "/__siAn__" + abIdx + ".jpg");
-    composite(bgImg, tmpPng, siAnFile, 1, 0.1, null, null, null, null, "GmarketSans");
+   if (isCarrierTag) {
+    /* ── 배경 없이 디자인만 JPG ── */
+    var jOpt2 = new ExportOptionsJPEG();
+    jOpt2.qualitySetting     = 100;
+    jOpt2.resolution         = isBadge ? 1200 : 600;
+    jOpt2.horizontalScale    = jOpt2.verticalScale = 100;
+    jOpt2.antiAliasing       = true;
+    jOpt2.optimized          = true;
+    jOpt2.artBoardClipping   = true;
+
+    // 현재 아트보드 → JPG
+    doc.exportFile(siAnFile, ExportType.JPEG, jOpt2);
+    // 배경 PNG는 건드리지 않으므로 bgImg 없어도 OK
+    } else {
+      /* ── 기존 Multiply 합성 ── */
+      composite(bgImg, tmpPng, siAnFile, 1, yShiftVal,
+                null, null, null, null, "GmarketSans");
+    }
 
     try { tmpPng.remove(); } catch (e) {}
     compositeJPGs.push(siAnFile);
@@ -280,27 +308,27 @@
   // 목업 배경 없이 시안전송 JPG + 텍스트만
   stackVertically(compositeJPGs, mockFile, userText, "GmarketSans");
 
-  function stackVertically(images, outFile, userText, fontName) {
-    if (!images || images.length === 0) {
-      alert("이미지가 없습니다.");
-      return;
-    }
+  function stackVertically(images, outFile, userText, fontName)
+  {
+    /* ── 0) 유효성 ─────────────────────────── */
+    if (!images || images.length === 0) { alert("이미지가 없습니다."); return; }
 
-    var tempDoc = app.documents.add(DocumentColorSpace.RGB, 2000, 2000);
-    var placed = [];
-    var totalHeight = 0;
-    var maxWidth = 0;
+    /* ── 1) 새 문서 & 이미지 배치 ───────────── */
+    var tempDoc      = app.documents.add(DocumentColorSpace.RGB, 2000, 2000);
+    var placed       = [];
+    var totalHeight  = 0;
+    var maxWidth     = 0;
 
     for (var i = 0; i < images.length; i++) {
       var f = new File(images[i]);
       if (!f.exists) continue;
 
-      var item = tempDoc.placedItems.add();
-      item.file = f;
-      app.redraw();
-      placed.push(item);
-      totalHeight += item.height;
-      if (item.width > maxWidth) maxWidth = item.width;
+      var it = tempDoc.placedItems.add();
+      it.file = f;  app.redraw();
+
+      placed.push(it);
+      totalHeight += it.height;
+      if (it.width > maxWidth) maxWidth = it.width;
     }
 
     if (placed.length === 0) {
@@ -309,46 +337,94 @@
       return;
     }
 
-    // 🆕 여백 추가
-    var EXTRA_SPACE = 150;
-    var totalHWithText = totalHeight + (userText ? EXTRA_SPACE : 0);
+    /* ── 2) 아트보드 크기 & 이미지 위치 ─────── */
+    var TOP_SPACE    = (!isCarrierTag && userText) ? 150 : 0;  // 명찰/뱃지
+    var BOTTOM_SPACE = ( isCarrierTag && userText) ? 80  : 0; // 캐리어
 
-    tempDoc.artboards[0].artboardRect = [0, totalHWithText, maxWidth, 0];
-    var y = totalHWithText;
+    var artH = totalHeight + TOP_SPACE + BOTTOM_SPACE;
+    tempDoc.artboards[0].artboardRect = [0, artH, maxWidth, 0];
 
+    var y = artH;
     for (var i = 0; i < placed.length; i++) {
-      var item = placed[i];
-      y -= item.height;
-      item.position = [(maxWidth - item.width) / 2, y + item.height];
+      var it = placed[i];
+      y -= it.height;
+      it.position = [(maxWidth - it.width) / 2, y + it.height];
     }
 
+    /* ── 3) 텍스트 추가 ─────────────────────── */
     if (userText && userText !== "") {
-      var tf = tempDoc.textFrames.areaText(
-        tempDoc.pathItems.rectangle(EXTRA_SPACE - 20, 60, maxWidth - 120, 100)
-      );
-      tf.contents = userText;
-      var red = new RGBColor(); red.red = 255; red.green = 0; red.blue = 0;
-      tf.textRange.characterAttributes.fillColor = red;
-      tf.textRange.characterAttributes.size = 36;
-      try {
-        tf.textRange.characterAttributes.textFont = app.textFonts.getByName(fontName || "GmarketSans");
-      } catch (e) {
-        tf.textRange.characterAttributes.textFont = app.textFonts[0];
+
+      if (isCarrierTag) {
+        /* 캐리어 네임택 : 디자인 ‘아래’에 포인트-텍스트 */
+        var tf = tempDoc.textFrames.add();
+        tf.contents = userText;
+
+        /* 글꼴·크기 */
+        try {
+          tf.textRange.characterAttributes.textFont =
+              app.textFonts.getByName(fontName || "GmarketSans");
+        } catch (e) {
+          tf.textRange.characterAttributes.textFont = app.textFonts[0];
+        }
+        tf.textRange.characterAttributes.size = 12;
+
+        /* 색상 */
+        var red = new RGBColor(); red.red = 255; red.green = 0; red.blue = 0;
+        tf.textRange.characterAttributes.fillColor = red;
+
+        /* 가운데 정렬(문단) */
+        tf.paragraphs[0].paragraphAttributes.justification = Justification.CENTER;
+
+        /* 가로 중앙으로 보정 */
+        app.redraw();                              // 폭 계산 전 필수
+        var vb  = tf.visibleBounds;                // [L,T,R,B]
+        var w   = vb[2] - vb[0];                   // 실제 글자 폭
+        var h   = vb[1] - vb[3];                   // 실제 글자 높이
+
+        var cx  = (maxWidth - w) / 2;              // 좌우 중앙
+        var cy  = h / 2 + 10;                      // 하단 여백 10 pt
+        tf.position = [cx, cy];
+
+      } else {
+        /* 명찰·뱃지 : 디자인 ‘위’ Area-Text */
+        var margin = Math.min(60, maxWidth * 0.10);
+        var frameW = Math.max(50, maxWidth - margin * 2);
+
+        var tf = tempDoc.textFrames.areaText(
+          tempDoc.pathItems.rectangle(TOP_SPACE - 20,  // top
+                                      margin,          // left
+                                      frameW,          // width
+                                      100)             // height
+        );
+        tf.contents = userText;
+
+        try {
+          tf.textRange.characterAttributes.textFont =
+              app.textFonts.getByName(fontName || "GmarketSans");
+        } catch (e) {
+          tf.textRange.characterAttributes.textFont = app.textFonts[0];
+        }
+        tf.textRange.characterAttributes.size = 36;
+
+        var red = new RGBColor(); red.red = 255; red.green = 0; red.blue = 0;
+        tf.textRange.characterAttributes.fillColor = red;
+        tf.paragraphs[0].paragraphAttributes.justification = Justification.CENTER;
       }
-      tf.paragraphs[0].paragraphAttributes.justification = Justification.CENTER;
     }
 
+    /* ── 4) JPG 내보내기 ─────────────────────── */
     var jOpt = new ExportOptionsJPEG();
-    jOpt.qualitySetting = 100;
-    jOpt.resolution = 600;
-    jOpt.horizontalScale = jOpt.verticalScale = 100;
-    jOpt.antiAliasing = true;
-    jOpt.optimized = true;
+    jOpt.qualitySetting   = 100;
+    jOpt.resolution       = 600;
+    jOpt.horizontalScale  = jOpt.verticalScale = 100;
+    jOpt.antiAliasing     = true;
+    jOpt.optimized        = true;
     jOpt.artBoardClipping = true;
 
     tempDoc.exportFile(outFile, ExportType.JPEG, jOpt);
     tempDoc.close(SaveOptions.DONOTSAVECHANGES);
   }
+
 
 
   /* 7) 임시 PNG 삭제 & 종료 */

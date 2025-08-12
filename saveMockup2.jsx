@@ -47,6 +47,7 @@
     /_(.*?)_[0-9]+_([0-9]{8}-[0-9]{7}(?:-\d+)?)$/
   );
   if (!m){ alert("❌ 파일명에서 제품코드·주문번호를 찾지 못했습니다."); return; }
+
   // var productCode = m[1];      // IMHC
   var orderNo     = m[2];      // 20250623-0000362
 
@@ -86,11 +87,9 @@
 
 
   var dupTag = getDupTag(dir, full);   // ← "(3)" 또는 "_시안"  
-  // alert(dupTag);
 
 
   var outFix  = uniq(safeName + dupTag + "_확정용");
-  // var outSend = uniq(safeName + "_시안전송용");
   var outMock = uniq(safeName + dupTag + "_시안전송목업용");
 
   /* 4) 배경 이미지 선택 */

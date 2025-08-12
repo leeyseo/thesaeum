@@ -64,11 +64,8 @@
 
   /* 2) 빈 레이어만 삭제 --------------------------------------------- */
   var removed = 0;
-  for (i = 0; i < oldLayers.length; i++) {
-    var lay = oldLayers[i];
-    if (lay.pageItems.length === 0 && lay.layers.length === 0) {
-      try { lay.remove(); removed++; } catch (_) {}
-    }
+  for (var j = 0; j < oldLayers.length; j++) {
+    try { oldLayers[j].remove(); removed++; } catch (e) {}
   }
 
   // alert("디자인 이동: " + moved +

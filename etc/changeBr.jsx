@@ -15,8 +15,8 @@
     if (tf.locked || tf.hidden) { skipped++; continue; }
 
     var txt = tf.contents;
-    if (txt && txt.indexOf("<br>") !== -1) {
-      tf.contents = txt.replace(/<br>/g, "\r");   // Illustrator 줄바꿈 = "\r"
+    if (txt && txt.indexOf("<Br>") !== -1) {
+      tf.contents = txt.replace(/<Br>/g, "\r");   // Illustrator 줄바꿈 = "\r"
       changed++;
     }
   }
