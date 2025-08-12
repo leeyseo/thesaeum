@@ -35,13 +35,6 @@
   if (tryPng.exists) imgFile = tryPng;
   else if (tryJpg.exists) imgFile = tryJpg;
 
-  var m = baseName.match(/_([0-9]{8}-[0-9]{7}(?:-\d+)?)/);
-  
-  if (!m) {
-    alert("❌ 파일명에 '_YYYYMMDD-#######' 형식이 없습니다.");
-    return;
-  }
-  var folderId = m[1];
   var totalBoards = doc.artboards.length;
   var jpgCount = Math.ceil(totalBoards / bundleSize);
 
@@ -115,20 +108,9 @@
     }
   }
 
-  function getNonConflictingFile(base, ext) {
-    var f = new File(base + ext);
-    var i = 1;
-    while (f.exists) {
-      f = new File(base + "_" + i + ext);
-      i++;
-    }
-    return f;
-  }
-
   for (var part = 0; part < jpgCount; part++) {
     var startIdx = part * bundleSize;
     var endIdx = Math.min(startIdx + bundleSize - 1, totalBoards - 1);
-    var actualRange = (startIdx + 1) + "-" + (endIdx + 1);
 
     var imgLayer = makeEmptyLayer("TEMP_IMG_LAYER");
     var designLayer = makeEmptyLayer("TEMP_EXPORT_LAYER");
@@ -201,9 +183,6 @@
     var totH = totRows * ABH + (totRows - 1) * GAP;
     var expAB = doc.artboards.add([ORIGIN_X, 0, ORIGIN_X + totW, -totH]);
     var expIdx = doc.artboards.length - 1;
-
-    // var outDir = new Folder("C:/work/" + folderId);
-    // if (!outDir.exists) outDir.create();
     var outDir;
     try {
       outDir = doc.fullName.parent;
@@ -227,8 +206,6 @@
 
     /* 3) 최종 저장 경로 */
     var outFile = uniqueJpg(basePath);        // ← 여기서 중복 해결
-
-    // var outFile = getNonConflictingFile(basePath, ".jpg");
 
     var jpg = new ExportOptionsJPEG();
     jpg.artBoardClipping = true;

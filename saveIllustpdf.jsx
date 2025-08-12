@@ -5,7 +5,6 @@
   }
 
   var doc = app.activeDocument;
-  // ★ 현재 문서(.ai)가 저장된 폴더
   var docFolder;
   try {
     docFolder = doc.fullName.parent;
@@ -15,6 +14,28 @@
   }
   if (doc.dataSets.length === 0) { alert("데이터셋이 없습니다."); return; }
 
+  var fileStem = decodeURI(doc.name).replace(/\.ai$/i, "");
+  var m = fileStem.match(/_([0-9]{8}-[0-9]{7}(?:-\d+)?)(?:\+([^+]+))?$/);
+  if (m) {
+    var reportPart = (m[2] || "").replace(/^\s+|\s+$/g, "");
+
+    if (reportPart.toLowerCase().indexOf("a") !== -1) {
+      var workFolder = new Folder("C:/work/작업물");
+      if (!workFolder.exists) workFolder.create();
+
+      // 2) pdf 때와 동일한 베이스 이름 추출 (…_YYYYMMDD-#######(-##) 까지)
+      var fullNameA = decodeURI(doc.name).replace(/\.ai$/i, "");
+      var matchFullA = fullNameA.match(/^(.*?_\d{8}-\d{7}(?:-\d+)?)/);
+      var inputNameA = matchFullA ? matchFullA[1] : fullNameA; // 안전장치
+
+      // 3) AI 파일 복사 (pdf 복사와 동일하게: 중복 체크 없이 그대로 복사)
+      var aiDest = new File(workFolder.fsName + "/" + inputNameA + ".ai");
+      doc.fullName.copy(aiDest);
+      return;
+    }
+  }
+
+
   
 
   // 🔧 ES3 호환 공백 제거 함수 (trim 대체)
@@ -23,7 +44,6 @@
   }
 
   // 🔤 파일명 입력
-  // var inputName = prompt("PDF로 저장할 파일 이름을 입력하세요:", "");
   var fullName = decodeURI(doc.name).replace(/\.ai$/i, "");
   var matchFull = fullName.match(/^(.*?_\d{8}-\d{7}(?:-\d+)?)/);
   if (!matchFull) {
@@ -32,13 +52,6 @@
   }
   var inputName = matchFull[1];
   
-
-  // // ⛔ 창 닫음 (null) → 저장 안 함
-  // if (inputName === null) {
-  //   alert("❌ 저장이 취소되었습니다.");
-  //   return;
-  // }
-
   // 📄 PDF 옵션
   var pdfOpts = new PDFSaveOptions();
   pdfOpts.compatibility       = PDFCompatibility.ACROBAT5;
@@ -57,7 +70,6 @@
   var workFolder = new Folder("C:/work/작업물");
   if (!workFolder.exists) workFolder.create();
 
-  // ⛔ 입력이 공백일 경우 → "파일명없음.pdf"만 작업물에 저장
   if (isEmpty(inputName)) {
     var fileSimple = new File(workFolder.fsName + "/파일명없음.pdf");
     doc.saveAs(fileSimple, pdfOpts);
@@ -72,7 +84,6 @@
     return;
   }
 
-  var folderName = match[1];
 
   var resultFolder = docFolder;
 
@@ -94,6 +105,4 @@
   // 2️⃣ 작업물 폴더에는 파일 복사
   var file2 = new File(workFolder.fsName + "/" + inputName + ".pdf");
   file1.copy(file2);  // ← 복사만 함
-  // ✅ 완료 메시지
-  // alert("✅ PDF 저장 완료:\n1) " + file1.fsName + "\n2) " + file2.fsName);
 })();

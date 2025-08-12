@@ -5,6 +5,19 @@
   }
 
   var doc = app.activeDocument;
+  var fileStem = decodeURI(doc.name).replace(/\.ai$/i, "");
+  var m = fileStem.match(/_([0-9]{8}-[0-9]{7}(?:-\d+)?)(?:\+([^+]+))?$/);
+
+  if (m) {
+    var numPart    = m[1];                     // "20250812-0000765-01"
+    var reportPart = (m[2] || "").replace(/^\s+|\s+$/g, "");  // "ab" 또는 ""
+    // 보고단위에 'a'가 포함되어 있으면 즉시 종료 (대소문자 무시)
+    if (reportPart.toLowerCase().indexOf("a") !== -1) {
+      return;
+    }
+  }
+
+
   var noStroke = new NoColor();
   var count = 0;
 
