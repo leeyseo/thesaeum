@@ -28,4 +28,34 @@
   /* 5) 저장 후 안내 */
   doc.saveAs(previewFile, aiOpts);
 //   alert("✅ 미리보기용으로 저장 완료:\n" + previewFile.fsName);
+  /* 6) 원본 파일명에서 +알파벳 제거 (예: ...-01+a_1.ai → ...-01_1.ai) */
+  var cleanedBase = baseName.replace(
+    /(_\d{8}-\d{7}(?:-\d+)?)(\+[A-Za-z]+)(?=(_|$))/,
+    "$1"
+  );
+
+  if (cleanedBase !== baseName) {
+    var originalPath = dir.fsName + "/" + baseName + ".ai";
+    var cleanedPath  = dir.fsName + "/" + cleanedBase + ".ai";
+
+    var originalFile = new File(originalPath);
+    var cleanedFile  = new File(cleanedPath);
+
+    if (originalFile.exists) {
+      // 같은 이름이 이미 있으면 (2), (3)… 붙여서 저장
+      if (cleanedFile.exists) {
+        var n = 2;
+        while (new File(dir.fsName + "/" + cleanedBase + "(" + n + ").ai").exists) {
+          n++;
+        }
+        cleanedFile = new File(dir.fsName + "/" + cleanedBase + "(" + n + ").ai");
+      }
+      try {
+        originalFile.rename(cleanedFile.name);
+      } catch (e) {
+        // rename 실패 시에는 그대로 두거나 필요하면 alert
+        // alert("⚠️ 이름 변경 실패: " + e);
+      }
+    }
+  }
 })();

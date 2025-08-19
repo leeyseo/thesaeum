@@ -4,6 +4,20 @@
   if (app.documents.length === 0) { alert("열린 문서가 없습니다."); return; }
 
   var doc     = app.activeDocument;
+  var fileStem = decodeURI(doc.name).replace(/\.ai$/i, "");
+  var m = fileStem.match(/_([0-9]{8}-[0-9]{7}(?:-\d+)?)(?:\+([^+]+))?$/);
+
+  if (m) {
+    var reportPart = (m[2] || "").replace(/^\s+|\s+$/g, "");  // "ab" 또는 ""
+    // 보고단위에 'a'가 포함되어 있으면 즉시 종료 (대소문자 무시)
+    if (reportPart.toLowerCase().indexOf("b") !== -1) {
+      return;
+    }
+  }
+
+
+
+
   var abCount = doc.artboards.length;
 
   /* ── 0. 맨 아래 레이어 확보 ── */

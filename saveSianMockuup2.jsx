@@ -34,6 +34,7 @@
   // // 4) 최종 파일명
   // var baseName = parts.join("_");
   var baseName =decodeURI(doc.name).replace(/\.ai$/i, "");
+  baseName = baseName.replace(/(_\d{8}-\d{7}(?:-\d+)?)(\+\S+)(?=$|_)/, "$1");
 
 
   var GAP_H    = 10;   // 좌우(열 간) 간격

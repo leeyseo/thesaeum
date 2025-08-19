@@ -21,7 +21,6 @@
     return;
   }
   var numFolder = m[1].split("+")[0];  // 예: 20250626-0000190
-  input = input.replace(/ /g, "-");
 
   /* 3) 저장 폴더 생성 */
   var root = new Folder("C:/work");

@@ -5,36 +5,8 @@
   var abTotal  = doc.artboards.length;
   if (abTotal === 0) { alert("아트보드가 없습니다."); return; }
 
-  // var fileStem = decodeURI(doc.name).replace(/\.ai$/i, "");
-
-  // // 1) '_'로 분리
-  // var parts = fileStem.split("_");
-
-  // // 2) 날짜-번호 토큰 찾기 + (+ab) 제거
-  // var dateIdx = -1;
-  // for (var i = 0; i < parts.length; i++) {
-  //   // 예: 20250812-0000765-01 또는 20250812-0000765-01+ab
-  //   var m = parts[i].match(/^(\d{8}-\d{7}(?:-\d+)?)(?:\+.*)?$/);
-  //   if (m) {
-  //     parts[i] = m[1]; // + 뒤 보고단위 제거
-  //     dateIdx = i;
-  //     break;
-  //   }
-  // }
-  // if (dateIdx === -1) {
-  //   alert("❌ 날짜-번호 형식을 찾지 못했습니다.");
-  //   return;
-  // }
-
-  // // 3) 찾은 날짜 토큰 바로 앞의 두 토큰 제거 (예: 임종기, 1)
-  // if (dateIdx > 1) {
-  //   parts.splice(dateIdx - 2, 2);
-  // }
-
-  // // 4) 최종 파일명
-  // var baseName = parts.join("_");
-  var baseName =decodeURI(doc.name).replace(/\.ai$/i, "");
-  alert(baseName);
+  var baseName = decodeURI(doc.name).replace(/\.ai$/i, "");
+  baseName = baseName.replace(/(_\d{8}-\d{7}(?:-\d+)?)(\+\S+)(?=$|_)/, "$1");
   var GAP_PT   = 10;          // 아트보드 간격
 
   /* ── 1) 각 아트보드 크기 수집 ---------------------------------- */

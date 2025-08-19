@@ -12,7 +12,7 @@
     var numPart    = m[1];                     // "20250812-0000765-01"
     var reportPart = (m[2] || "").replace(/^\s+|\s+$/g, "");  // "ab" 또는 ""
     // 보고단위에 'a'가 포함되어 있으면 즉시 종료 (대소문자 무시)
-    if (reportPart.toLowerCase().indexOf("a") !== -1) {
+    if (reportPart.toLowerCase().indexOf("b") !== -1) {
       return;
     }
   }

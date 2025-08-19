@@ -10,6 +10,16 @@
   var doc = app.activeDocument,
       N   = doc.artboards.length;
 
+
+
+    /* 🔒 Illustrator 변수(Variables) 없으면 중단 */
+  if (!doc.variables || doc.variables.length === 0) {
+    alert("⚠️ 이 문서에는 변수(Variables)가 없습니다. 매핑여부를 확인하세요.");
+    return;
+  }
+
+
+
   /* ── 이미 Artboard_ 레이어가 있으면 작업 취소 ── */
   for (var i = 0; i < doc.layers.length; i++) {
     if (doc.layers[i].name.indexOf("Artboard_") !== -1) {

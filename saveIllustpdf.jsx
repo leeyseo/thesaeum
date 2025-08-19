@@ -19,7 +19,7 @@
   if (m) {
     var reportPart = (m[2] || "").replace(/^\s+|\s+$/g, "");
 
-    if (reportPart.toLowerCase().indexOf("a") !== -1) {
+    if (reportPart.toLowerCase().indexOf("b") !== -1) {
       var workFolder = new Folder("C:/work/작업물");
       if (!workFolder.exists) workFolder.create();
 

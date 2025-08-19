@@ -19,7 +19,7 @@
   var baseOrig = input;                    // 표시용(공백 포함)
   var basePath = input.replace(/ /g, "-"); // 경로·파일명용
   /* ❶ ‘뱃지’ 여부에 따라 허용 필드 수가 다름 */
-  var isCarrierTag = /캐리어네임택/i.test(baseOrig); 
+  var isCarrierTag = /사원증/i.test(baseOrig); 
 
 
   var parts = baseOrig.split("_");
