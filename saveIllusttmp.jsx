@@ -8,6 +8,11 @@
   // if (doc.dataSets.length === 0) { alert("데이터셋이 없습니다."); return; }
   var doc = app.activeDocument;
   if (doc.dataSets.length === 0) { alert("데이터셋이 없습니다."); return; }
+  var curName = doc.name.replace(/\.ai$/i, "");
+  if (curName.indexOf("_미리보기용-업로드금지(X)") !== -1) {
+    // alert("⚠️ 이미 미리보기용 파일입니다. 작업을 중단합니다.");
+    return;
+  }
 
   /* 1) 원본 파일 경로·이름 파싱 */
   var orig     = new File(doc.fullName);          // 전체 경로
