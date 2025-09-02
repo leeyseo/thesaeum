@@ -27,11 +27,11 @@
   var isBadge = parts[0].indexOf("뱃지") !== -1;
   /* ❷ 형식 검사 */
   /* ❷ 형식 검사 */
-  if ( (!isBadge  && !isCarrierTag && parts.length < 7) ||   // 일반 명찰 ≥7
-      ( (isBadge || isCarrierTag) && parts.length < 6) ) {  // 뱃지·캐리어네임택 ≥6
-    alert("❌ 입력 형식 오류");
-    return;
-  }
+  // if ( (!isBadge  && !isCarrierTag && parts.length < 7) ||   // 일반 명찰 ≥7
+  //     ( (isBadge || isCarrierTag) && parts.length < 6) ) {  // 뱃지·캐리어네임택 ≥6
+  //   alert("❌ 입력 형식 오류");
+  //   return;
+  // }
   /* ❸ 필드 해석 */
 
   var imgKey   = (parts[0].indexOf("엣지") !== -1 ? "엣지_" : "") +
