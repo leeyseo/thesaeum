@@ -13,6 +13,11 @@
     return;
   }
   if (doc.dataSets.length === 0) { alert("데이터셋이 없습니다."); return; }
+  var curName = doc.name.replace(/\.ai$/i, "");
+  if (curName.indexOf("디자이너용") !== -1) {
+    alert("⚠️ 디자이너용 미리보기로 작업하셨습니다. f3->f9은 금지되어있습니다. 처음부터 다시 작업하세요");
+    return;
+  }
 
   var fileStem = decodeURI(doc.name).replace(/\.ai$/i, "");
   var m = fileStem.match(/_([0-9]{8}-[0-9]{7}(?:-\d+)?)(?:\+([^+]+))?$/);
