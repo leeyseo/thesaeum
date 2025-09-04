@@ -13,7 +13,7 @@
     ""
   );
   if (!input) return;
-  
+  input = input.replace(/[\/\\:\*\?"<>\|]/g, "-");
   /* 2) 날짜-번호(폴더명) 추출 */
   var m = input.match(/_([0-9]{8}-[0-9]{7}(?:-\d+)?)/);
   if (!m) {
