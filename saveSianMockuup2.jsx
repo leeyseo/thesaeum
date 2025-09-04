@@ -163,8 +163,8 @@
   /* ── 4) JPG 내보내기 ------------------------------------------- */
   var jpgOpt = new ExportOptionsJPEG();
   jpgOpt.qualitySetting   = 100;
-  jpgOpt.resolution       = 600;
-  jpgOpt.horizontalScale  = jpgOpt.verticalScale = 100;
+  jpgOpt.resolution       = 1800;
+  jpgOpt.horizontalScale  = jpgOpt.verticalScale = 300;
   jpgOpt.optimized        = true;
   jpgOpt.antiAliasing     = true;
   jpgOpt.artBoardClipping = false;
