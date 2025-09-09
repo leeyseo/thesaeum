@@ -214,10 +214,37 @@
                  rectF[2] + AB_W + GAP,
                  rectF[3]];
 
-    /* 3-5) 아트보드 생성/재사용 */
-    var abFIdx = (d === 0) ? 0 : (doc.artboards.add(rectF), doc.artboards.length - 1);
-    if (d !== 0) doc.artboards[abFIdx].artboardRect = rectF;
-    var abBIdx = (doc.artboards.add(rectB), doc.artboards.length - 1);
+    /* 3-5) 아트보드 생성/재사용 — ★ AOoC 방지 */
+    var abFIdx;
+    if (d === 0) {
+      abFIdx = 0;
+      doc.artboards[abFIdx].artboardRect = rectF; // 시작점 보정
+    } else {
+      try {
+        doc.artboards.add(rectF);
+      } catch (e) {
+        // 캔버스 한계로 실패하면, 다음 열로 넘겨 재시도
+        col += 1; row = 0;
+        baseX = col * (pairW + GAP);
+        baseY = 0;
+        rectF = [AB0[0] + baseX, AB0[1] - baseY, AB0[2] + baseX, AB0[3] - baseY];
+        doc.artboards.add(rectF);
+      }
+      abFIdx = doc.artboards.length - 1;
+    }
+    try {
+      doc.artboards.add(rectB);
+    } catch (e2) {
+      // 뒷면도 동일하게 다음 열로
+      col += 1; row = 0;
+      baseX = col * (pairW + GAP);
+      baseY = 0;
+      rectB = [AB0[0] + baseX + AB_W + GAP, AB0[1] - baseY,
+              AB0[2] + baseX + AB_W + GAP, AB0[3] - baseY];
+      doc.artboards.add(rectB);
+    }
+    var abBIdx = doc.artboards.length - 1;
+
 
     // /* ── DEBUG: srcLayer 안 오브젝트의 artboard 분포 ── */
     // (function () {

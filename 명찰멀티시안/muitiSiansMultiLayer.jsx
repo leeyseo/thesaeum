@@ -2,33 +2,36 @@
   var doc = app.activeDocument;
   if (!doc) { alert("문서가 없습니다."); return; }
   if (doc.dataSets.length === 0) { alert("데이터셋이 없습니다."); return; }
-    // ✅ 이미 있으면 경고 후 종료
-  try {
-    if (doc.layers.getByName("출력_디자인")) {
-      // alert("❌ 이미 '출력_디자인' 레이어가 존재합니다.\n작업을 취소합니다.");
-      return;
-    }
-  } catch (_) {}
+
+  // 이미 결과 레이어가 있으면 재실행 방지
+  try { if (doc.layers.getByName("출력_디자인")) return; } catch (_) {}
 
   app.executeMenuCommand("unlockAll");
   app.executeMenuCommand("showAll");
 
+  // 아트보드 0만 남기기
   while (doc.artboards.length > 1) doc.artboards[1].remove();
-  var AB0  = doc.artboards[0].artboardRect,
-      AB_H = AB0[1] - AB0[3],
-      GAP  = 50;
 
+  var AB0   = doc.artboards[0].artboardRect,     // [L,T,R,B]
+      AB_W  = AB0[2] - AB0[0],
+      AB_H  = AB0[1] - AB0[3];
+
+  var GAP_V = 50;     // 행(세로) 간격
+  var GAP_H = 50;     // 열(가로) 간격
+  var ROWS_PER_COL = 50;  // ★ 50개마다 새 열로
+
+  // 전 레이어 숨기고 출력 레이어 생성
   for (var i = 0; i < doc.layers.length; i++) doc.layers[i].visible = false;
-
   var outLayer = doc.layers.add(); outLayer.name = "출력_디자인";
 
-  var layVar = null, varPairs = [];
+  // 변수 수집
+  var layVar = null, varPairs = [], j;
   for (i = 0; i < doc.variables.length; i++) {
     var nm = doc.variables[i].name;
     if (nm === "레이어") layVar = doc.variables[i];
     if (nm.indexOf("이름_") === 0) {
       var idx = nm.substring(3), mate = "직책_" + idx;
-      for (var j = 0; j < doc.variables.length; j++) {
+      for (j = 0; j < doc.variables.length; j++) {
         if (doc.variables[j].name === mate) {
           varPairs.push({ idx: idx, nameVar: doc.variables[i], titleVar: doc.variables[j] });
           break;
@@ -38,10 +41,12 @@
   }
   if (!layVar) { alert("변수 '레이어' 가 없습니다."); return; }
 
+  // 데이터셋 반복
   for (var d = 0; d < doc.dataSets.length; d++) {
     var ds = doc.dataSets[d];
     ds.display(); $.sleep(60);
 
+    // 사용할 레이어 인덱스 판단
     var gIdx = null, lyrVal = null;
     try {
       if (typeof ds.getVariableValue === "function") {
@@ -49,10 +54,7 @@
         lyrVal = dv.textualContents || dv.contents || dv;
       }
     } catch (_) {}
-
-    if (lyrVal == null) {
-      try { lyrVal = layVar.pageItems[0].contents; } catch (_) {}
-    }
+    if (lyrVal == null) { try { lyrVal = layVar.pageItems[0].contents; } catch (_) {} }
     if (lyrVal && lyrVal !== "Nan") gIdx = lyrVal;
     if (!gIdx) {
       for (i = 0; i < varPairs.length; i++) {
@@ -63,52 +65,59 @@
         } catch (_) {}
       }
     }
-    if (!gIdx) {
-      alert("DS" + (d+1) + ": 사용할 레이어를 판단할 수 없습니다.");
-      continue;
-    }
+    if (!gIdx) { alert("DS" + (d+1) + ": 사용할 레이어를 판단할 수 없습니다."); continue; }
 
     var srcLayer;
     try { srcLayer = doc.layers.getByName("Artboard_" + gIdx); }
-    catch (_) {
-      alert("Artboard_" + gIdx + " 레이어가 없습니다.");
-      continue;
-    }
+    catch (_) { alert("Artboard_" + gIdx + " 레이어가 없습니다."); continue; }
 
-    var dy = -d * (AB_H + GAP),
-        rect = [AB0[0], AB0[1] + dy, AB0[2], AB0[3] + dy],
-        abIdx;
+    // ★ 격자 배치: 50개마다 새 열
+    var row = d % ROWS_PER_COL;                       // 0..49
+    var col = Math.floor(d / ROWS_PER_COL);           // 0,1,2,...
+
+    var shiftX = col * (AB_W + GAP_H);
+    var shiftY = -row * (AB_H + GAP_V);
+
+    var rect   = [AB0[0] + shiftX, AB0[1] + shiftY, AB0[2] + shiftX, AB0[3] + shiftY];
+    var abIdx;
 
     if (d === 0) {
+      // 첫 번째는 기존 아트보드 사용 (row=0,col=0이므로 이동 없음)
       abIdx = 0;
     } else {
-      doc.artboards.add(rect);
+      try {
+        doc.artboards.add(rect);
+      } catch (e) {
+        // 혹시라도 AOoC가 나면 강제로 다음 열부터 시작
+        col += 1;
+        shiftX = col * (AB_W + GAP_H);
+        shiftY = 0;
+        rect   = [AB0[0] + shiftX, AB0[1], AB0[2] + shiftX, AB0[3]];
+        doc.artboards.add(rect);
+      }
       abIdx = doc.artboards.length - 1;
     }
 
+    // 디자인 복제 → 그룹
     var grp = outLayer.groupItems.add();
     grp.name = "DS" + (d+1) + "_" + gIdx;
 
     for (i = 0; i < srcLayer.pageItems.length; i++) {
       var it = srcLayer.pageItems[i];
-      if (!it.locked && !it.hidden) {
-        it.duplicate(grp, ElementPlacement.PLACEATEND);
-      }
+      if (!it.locked && !it.hidden) it.duplicate(grp, ElementPlacement.PLACEATEND);
     }
 
-    // 정확한 위치 맞춤 (디자인 ↔ 새 아트보드)
-    var bounds = grp.visibleBounds; // [L, T, R, B]
-    var designLeft = bounds[0], designTop = bounds[1];
+    // 새 아트보드 좌상단에 정렬
+    var b     = grp.visibleBounds,         // [L,T,R,B]
+        gLeft = b[0], gTop = b[1];
+    var abR   = doc.artboards[abIdx].artboardRect,
+        aLeft = abR[0], aTop = abR[1];
 
-    var abRect = doc.artboards[abIdx].artboardRect;
-    var abLeft = abRect[0], abTop = abRect[1];
-
-    var dx = abLeft - designLeft;
-    var dy2 = abTop - designTop;
-
-    grp.position = [grp.position[0] + dx, grp.position[1] + dy2];
+    var dx = aLeft - gLeft, dy = aTop - gTop;
+    grp.position = [grp.position[0] + dx, grp.position[1] + dy];
     try { grp.artboard = abIdx; } catch (_) {}
   }
 
+  // 보기 복구
   doc.dataSets[0].display();
 })();
