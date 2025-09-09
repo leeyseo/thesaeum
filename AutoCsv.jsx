@@ -42,7 +42,7 @@
   }
 
   /* 4) 보호 텍스트(홍길동, hong gil dong) 원복 + 첫 데이터셋 미리보기 */
-var PROTECT_VALUES = ["홍길동", "hong gil dong"];
+var PROTECT_VALUES = ["홍길동","길동", "hong gil dong","gil dong","Hong Gil Dong","Hong gil dong","Gil Dong","Gil dong"];
 
 function _norm(s) { return (s || "").toLowerCase().replace(/[\s\-\_\.]+/g, ""); } // 공백/기호 무시
 function _trim(s) { return (s || "").replace(/^\s+|\s+$/g, ""); }
