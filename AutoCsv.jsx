@@ -73,13 +73,13 @@ for (i = 0; i < keepFrames.length; i++) {
   try { keepFrames[i].contents = keepTexts[i]; } catch (_) {}
 }
 
-// 4-4) 안내
-alert(
-  "✅ 변수 라이브러리 로드 완료\n" +
-  "보호 텍스트 원복: " + keepFrames.length + "개\n" +
-  "파일: " + csvFile.fsName + "\n" +
-  "데이터셋: " + dsCount + "개"
-);
+// // 4-4) 안내
+// alert(
+//   "✅ 변수 라이브러리 로드 완료\n" +
+//   "보호 텍스트 원복: " + keepFrames.length + "개\n" +
+//   "파일: " + csvFile.fsName + "\n" +
+//   "데이터셋: " + dsCount + "개"
+// );
 
 //   /* 4) 결과 확인 및 첫 데이터셋 미리보기 */
 //   var dsCount = doc.dataSets.length;
