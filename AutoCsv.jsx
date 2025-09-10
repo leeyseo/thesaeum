@@ -14,21 +14,16 @@
   var orderId = idm[1]; // 예: 20250814-0001677-01
 
   /* 2) CSV 경로 구성: C:/work/<id>/<id>.csv  (슬래시는 / 사용) */
-  var csvPath = "C:/work/" + orderId + "/" + orderId + ".csv";
+  var csvPath = "C:/work/" + orderId + "/" + orderId +"_new"+ ".csv";
   var csvFile = new File(csvPath);
   if (!csvFile.exists) {
     // 보조: 같은 폴더의 .CSV(대문자) 또는 .xml도 찾아봄
-    var csvAlt = new File("C:/work/" + orderId + "/" + orderId + ".CSV");
-    var xmlAlt = new File("C:/work/" + orderId + "/" + orderId + ".xml");
-    if (csvAlt.exists) csvFile = csvAlt;
-    else if (xmlAlt.exists) csvFile = xmlAlt;
+    var csvAlt = new File("C:/work/" + orderId + "/" + orderId + "_add" + ".csv");
+    if (csvAlt.exists) {
+      return;
+    }
     else {
-      // 최후: 사용자에게 선택받기
-      if (!csvFile.open("r")) { // 존재 여부 재확인용
-        var pick = File.openDialog("변수 라이브러리 CSV/XML 선택", "*.csv;*.CSV;*.xml", false);
-        if (!pick) return;
-        csvFile = pick;
-      }
+      return;
     }
   }
 
@@ -73,16 +68,4 @@ for (i = 0; i < keepFrames.length; i++) {
   try { keepFrames[i].contents = keepTexts[i]; } catch (_) {}
 }
 
-// // 4-4) 안내
-// alert(
-//   "✅ 변수 라이브러리 로드 완료\n" +
-//   "보호 텍스트 원복: " + keepFrames.length + "개\n" +
-//   "파일: " + csvFile.fsName + "\n" +
-//   "데이터셋: " + dsCount + "개"
-// );
-
-//   /* 4) 결과 확인 및 첫 데이터셋 미리보기 */
-//   var dsCount = doc.dataSets.length;
-//   try { if (dsCount > 0) { doc.dataSets[0].display(); } } catch (_) {}
-//   alert("✅ 변수 라이브러리 로드 완료\n파일: " + csvFile.fsName + "\n데이터셋: " + dsCount + "개");
 })();
