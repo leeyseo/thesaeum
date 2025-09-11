@@ -17,7 +17,7 @@
   var created = 0;
 
   // 홀수(1·3·5…) 아트보드만 대상
-  for (var ab = 1; ab <= abCount; ab += 2) {               // ← +2씩 증가
+  for (var ab = 1; ab <= abCount; ab++) {               // ← +2씩 증가
     for (var j = 0; j < baseNames.length; j++) {
       var key     = baseNames[j];
       var varName = key + "_" + ab;                        // 이름_1, 이름_3, …

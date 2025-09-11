@@ -342,77 +342,69 @@
     }
 
     /* ── 2) 아트보드 크기 & 이미지 위치 ─────── */
-    var TOP_SPACE    = (!isCarrierTag && userText) ? 150 : 0;  // 명찰/뱃지
-    var BOTTOM_SPACE = ( isCarrierTag && userText) ? 80  : 0; // 캐리어
+    // 상단/하단 여백: 텍스트 있을 때 넉넉히
+    var TOP_SPACE    = (!isCarrierTag && userText) ? 100 : 0;  // 기존 150 → 180
+    var BOTTOM_SPACE = ( isCarrierTag && userText) ?  80 : 0;
 
     var artH = totalHeight + TOP_SPACE + BOTTOM_SPACE;
     tempDoc.artboards[0].artboardRect = [0, artH, maxWidth, 0];
 
     var y = artH;
-    for (var i = 0; i < placed.length; i++) {
-      var it = placed[i];
-      y -= it.height;
-      it.position = [(maxWidth - it.width) / 2, y + it.height];
+    for (var j = 0; j < placed.length; j++) {
+      var it2 = placed[j];
+      y -= it2.height;
+      it2.position = [(maxWidth - it2.width) / 2, y + it2.height];
     }
 
-    /* ── 3) 텍스트 추가 ─────────────────────── */
+    /* ── 3) 텍스트 추가 (areaText 전용, 자동 맞춤) ─ */
     if (userText && userText !== "") {
+      var useFont = null;
+      try { useFont = app.textFonts.getByName(fontName || "GmarketSans"); } catch (e) {}
+      if (!useFont) useFont = app.textFonts[0];
 
-      if (isCarrierTag) {
-        /* 캐리어 네임택 : 디자인 ‘아래’에 포인트-텍스트 */
-        var tf = tempDoc.textFrames.add();
+      var red = new RGBColor(); red.red = 255; red.green = 0; red.blue = 0;
+
+      var margin   = Math.min(60, maxWidth * 0.10);
+      var frameW   = Math.max(50, maxWidth - margin * 2);
+
+      // 사원증이면 하단, 아니면 상단에 박스
+      var frameH   = isCarrierTag ? 120 : (isBadge ? 140 : 200);
+      var baseSize = isCarrierTag ? 12  : (isBadge ? 14 : 36);
+      var minSize  = isCarrierTag ?  8  : (isBadge ?  8 : 16);
+      var topY = isCarrierTag ? (frameH -60) : (TOP_SPACE - 20);
+
+      function makeArea(sz, h) {
+        var rect = tempDoc.pathItems.rectangle(topY, margin, frameW, h);
+        var tf = tempDoc.textFrames.areaText(rect);
         tf.contents = userText;
-
-        /* 글꼴·크기 */
-        try {
-          tf.textRange.characterAttributes.textFont =
-              app.textFonts.getByName(fontName || "GmarketSans");
-        } catch (e) {
-          tf.textRange.characterAttributes.textFont = app.textFonts[0];
-        }
-        tf.textRange.characterAttributes.size = 12;
-
-        /* 색상 */
-        var red = new RGBColor(); red.red = 255; red.green = 0; red.blue = 0;
-        tf.textRange.characterAttributes.fillColor = red;
-
-        /* 가운데 정렬(문단) */
+        tf.textRange.characterAttributes.textFont = useFont;
+        tf.textRange.characterAttributes.size     = sz;
+        tf.textRange.characterAttributes.fillColor= red;
         tf.paragraphs[0].paragraphAttributes.justification = Justification.CENTER;
+        return tf;
+      }
+      
 
-        /* 가로 중앙으로 보정 */
-        app.redraw();                              // 폭 계산 전 필수
-        var vb  = tf.visibleBounds;                // [L,T,R,B]
-        var w   = vb[2] - vb[0];                   // 실제 글자 폭
-        var h   = vb[1] - vb[3];                   // 실제 글자 높이
+      var tf = makeArea(baseSize, frameH);
+      app.redraw();
 
-        var cx  = (maxWidth - w) / 2;              // 좌우 중앙
-        var cy  = h / 2 + 10;                      // 하단 여백 10 pt
-        tf.position = [cx, cy];
+      // 1) 박스 높이 확장
+      var grow = 0;
+      var maxGrow = 6;
+      while (tf.overflows && grow < maxGrow) {
+        tf.remove();
+        frameH += 40;
+        tf = makeArea(baseSize, frameH);
+        app.redraw();
+        grow++;
+      }
 
-      } else {
-        /* 명찰·뱃지 : 디자인 ‘위’ Area-Text */
-        var margin = Math.min(60, maxWidth * 0.10);
-        var frameW = Math.max(50, maxWidth - margin * 2);
-
-        var tf = tempDoc.textFrames.areaText(
-          tempDoc.pathItems.rectangle(TOP_SPACE - 20,  // top
-                                      margin,          // left
-                                      frameW,          // width
-                                      100)             // height
-        );
-        tf.contents = userText;
-
-        try {
-          tf.textRange.characterAttributes.textFont =
-              app.textFonts.getByName(fontName || "GmarketSans");
-        } catch (e) {
-          tf.textRange.characterAttributes.textFont = app.textFonts[0];
-        }
-        tf.textRange.characterAttributes.size = 36;
-
-        var red = new RGBColor(); red.red = 255; red.green = 0; red.blue = 0;
-        tf.textRange.characterAttributes.fillColor = red;
-        tf.paragraphs[0].paragraphAttributes.justification = Justification.CENTER;
+      // 2) 폰트 축소
+      var sz = baseSize;
+      while (tf.overflows && sz > minSize) {
+        sz -= 2;
+        tf.textRange.characterAttributes.size = sz;
+        app.redraw();
       }
     }
 

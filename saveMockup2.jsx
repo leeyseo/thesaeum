@@ -243,61 +243,74 @@
   var userText = prompt("시안전송 JPG에 넣을 텍스트(없으면 빈칸):", "");
   if (userText === null) userText = "";
 
-  // (선택) 텍스트 오버레이: exp의 합성 바운더리 기준 중앙 하단에 배치
+  // (선택) 텍스트 오버레이: exp의 합성 바운더리 기준 "하단에서 60pt 위"에 areaText 박스
   var txtLayer = null;
   if (userText) {
-    var cmb = bounds(exp); // [L,T,R,B]
-    txtLayer = doc.layers.add(); txtLayer.name = "TEXT_TMP";
-    var tf = txtLayer.textFrames.add();
-    tf.contents = userText;
-    try { tf.textRange.characterAttributes.textFont = app.textFonts.getByName(TEXT_FONT); } catch(_){}
-    tf.textRange.characterAttributes.size = TEXT_SIZE;
+    var cmb = bounds(exp); // [L,T,R,B] = [왼, 위, 오른, 아래]
+    txtLayer = doc.layers.add(); 
+    txtLayer.name = "TEXT_TMP";
+
+    // 스타일
+    var useFont = null;
+    try { useFont = app.textFonts.getByName(TEXT_FONT || "GmarketSans"); } catch(e){}
+    if (!useFont) useFont = app.textFonts[0];
+
     var red = new RGBColor(); red.red=255; red.green=0; red.blue=0;
-    tf.textRange.characterAttributes.fillColor = red;
-    tf.paragraphs[0].paragraphAttributes.justification = Justification.CENTER;
 
-    // 텍스트 실제 폭(포인트 단위) 측정: 폰트/크기/트래킹 반영
-    function measureTextWidthPt(str, fontName, sizePt, tracking) {
-      var doc = app.activeDocument;
+    // 텍스트 박스 사양
+    var sideMargin   = 50;                          // 좌우 여백
+    var frameW       = Math.max(50, (cmb[2]-cmb[0]) - sideMargin*2);
+    var bottomMargin = 30;                          // 아래 여백 (원하면 조절)
+    var frameH       = 180;                         // 초기 높이(부족하면 키움)
 
-      // 임시 레이어/포인트 텍스트 생성
-      var tmpLayer = doc.layers.add(); tmpLayer.name = "__TMP_MEASURE__";
-      var tf = tmpLayer.textFrames.add();
-      tf.kind = TextType.POINTTEXT;                  // 반드시 포인트 텍스트
-      tf.contents = (str || "").replace(/[\r\n]+/g, " "); // 줄바꿈 제거(단일 줄 측정)
+    // 폰트 크기(사이즈 자동 보정용)
+    var baseSize = TEXT_SIZE || 20;
+    var minSize  = 10;
 
-      // 스타일 적용
+    // rectangle(top, left, width, height)
+    // 하단에서 bottomMargin 위에 top 을 두려면: top = cmb[3] + bottomMargin + frameH
+    function makeArea(sz, h){
+      var rectTop  = cmb[3] + bottomMargin + h;     // ↓↓↓ 하단 기준으로 위로 h만큼 올린 top
+      var rectLeft = cmb[0] + sideMargin;
+      var rect     = doc.pathItems.rectangle(rectTop, rectLeft, frameW, h);
+
+      var tf = txtLayer.textFrames.areaText(rect);
+      tf.contents = userText;
+
       var tr = tf.textRange;
-      if (fontName) { try { tr.characterAttributes.textFont = app.textFonts.getByName(fontName); } catch(e) {} }
-      if (sizePt)   { tr.characterAttributes.size = sizePt; }
-      if (tracking != null) { tr.characterAttributes.tracking = tracking; } // 천분의 1em 단위
+      tr.characterAttributes.textFont   = useFont;
+      tr.characterAttributes.size       = sz;
+      tr.characterAttributes.fillColor  = red;
+      tf.paragraphs[0].paragraphAttributes.justification = Justification.CENTER;
 
-      // 폭 갱신 후 측정
-      app.redraw();
-      var gb = tf.geometricBounds;                   // [L, T, R, B]
-      var widthPt = gb[2] - gb[0];
-
-      // 정리
-      try { tmpLayer.remove(); } catch(e) {}
-      return widthPt;                                // pt 단위
+      return tf;
     }
-    
 
-    // 중앙 x, 디자인 하단 B 기준 아래쪽으로 약간 내림(필요시 수치 조정)
-    // g1, g2는 앞에서 만든 두 그룹(앞/뒤 디자인)
-    var vb1 = g1.visibleBounds; // [L,T,R,B]
-    var vb2 = g2.visibleBounds; // [L,T,R,B]
+    // 1) 상자 생성
+    var tf = makeArea(baseSize, frameH);
+    app.redraw();
 
-    // 가로: 두 디자인 사이 ‘틈’의 정중앙
-    var midBetween = (vb1[2] + vb2[0]) / 2;
-    var w = measureTextWidthPt(userText, TEXT_FONT, TEXT_SIZE); 
+    // 2) 먼저 상자 높이를 키워서 넘침 해결 (최대 6단계)
+    var grow = 0;
+    while (tf.overflows && grow < 6) {
+      tf.remove();
+      frameH += 40;                                 // 40pt씩 확대
+      tf = makeArea(baseSize, frameH);
+      app.redraw();
+      grow++;
+    }
 
-    // 세로: 두 디자인 중 더 아래쪽(작은 값)의 바닥보다 40pt 아래
-    var bottom = Math.min(vb1[3], vb2[3]);
-
-    tf.position = [ midBetween-(w/2), bottom - 40 ];
-    txtLayer.zOrder(ZOrderMethod.BRINGTOFRONT);
+    // 3) 그래도 넘치면 폰트를 줄임
+    var sz = baseSize;
+    while (tf.overflows && sz > minSize) {
+      sz -= 2;
+      tf.textRange.characterAttributes.size = sz;
+      app.redraw();
+    }
+    var moveDown = 250;     // 예: 140pt 내려가기
+    tf.translate(0, -moveDown);   // Illustrator에선 음수가 '아래'로 이동
   }
+
 
   // JPEG 옵션은 이미 opt 설정됨(artBoardClipping=false)
   // → 문서의 보이는 객체 경계로 2개 디자인이 한 장에 저장됨
