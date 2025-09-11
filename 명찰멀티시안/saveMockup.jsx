@@ -25,6 +25,9 @@
   var parts = baseOrig.split("_");
 
   var isBadge = parts[0].indexOf("뱃지") !== -1;
+  var FONT_SIZE_BADGE    = 8;   // 뱃지일 때 (확 줄임)
+  var FONT_SIZE_NAMETAG  = 36;   // 일반 명찰
+  var FONT_SIZE_CARRIER  = 12;   // 캐리어 네임택(기존과 동일)
   /* ❷ 형식 검사 */
   /* ❷ 형식 검사 */
   // if ( (!isBadge  && !isCarrierTag && parts.length < 7) ||   // 일반 명찰 ≥7
@@ -232,8 +235,9 @@
       t.textRange.characterAttributes.fillColor = black;
       t.position = [off[0], H - off[1]];   // 좌상단 기준
     }
-    putText(txt1, off1, 40);
-    putText(txt2, off2, 40);
+    // 뱃지면 14, 아니면 40
+    putText(txt1, off1, isBadge ? FONT_SIZE_BADGE : 40);
+    putText(txt2, off2, isBadge ? FONT_SIZE_BADGE : 40);
 
     // ▶︎ JPG 내보내기
     nd.exportFile(out, ExportType.JPEG, jOpt);
