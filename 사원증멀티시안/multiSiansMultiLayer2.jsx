@@ -143,7 +143,64 @@
   /* ──────────── 3) 데이터셋 루프 ──────────── */
   for (var d = 0; d < DS.length; d++) {
 
-    DS[d].display(); $.sleep(30);
+    var missing = []; // ["이미지_1 → C:/.../a.png", ...]
+    (function checkImageVars() {
+      for (var key in imageVars) {
+        if (!imageVars.hasOwnProperty(key)) continue;
+        try {
+          var v = DS[d].getVariableValue(imageVars[key]);
+          // v는 보통 PlacedItem/Graphic/또는 file 정보를 가진 값
+          // 경로 얻기 시도
+          var fileObj = null, filePath = "";
+
+          if (v && v.file) {
+            // PlacedItem 등
+            fileObj = v.file;                // File 객체일 가능성
+          } else if (v && v.name && typeof v.name === "string") {
+            // 간혹 name에 경로가 들어오는 케이스 방어
+            fileObj = new File(v.name);
+          } else if (v && v.toString) {
+            // 문자열로 떨어질 때 방어
+            fileObj = new File(v.toString());
+          }
+
+          if (fileObj) {
+            filePath = decodeURI(fileObj.fsName || fileObj.fullName || fileObj.toString());
+            if (!fileObj.exists) {
+              missing.push(key + " → " + filePath);
+            }
+          }
+        } catch (_e) {
+          // 변수값을 못 읽는 경우도 "의심"으로 표시(선택)
+          // missing.push(key + " → (값을 읽을 수 없음)");
+        }
+      }
+    })();
+
+    // 1) 표시 시도 (이미지 누락으로 터질 수 있으므로 try/catch)
+    var displayed = false;
+    try {
+      DS[d].display();
+      $.sleep(30);
+      displayed = true;
+    } catch (eDisp) {
+      if (missing.length === 0) {
+        missing.push("이미지 파일(들)을 찾을 수 없음 (데이터셋 " + (d+1) + ")");
+      }
+      alert("⚠️ 데이터셋 #" + (d+1) + " 표시 중 오류\n"
+          + "에러: " + eDisp + "\n\n"
+          + "아래 파일이 존재하지 않을 가능성이 높습니다:\n - "
+          + missing.join("\n - "));
+      continue; 
+    }
+
+    // 2) 표시가 성공했더라도, 누락 목록이 있으면 경고만 띄우고 계속 진행할지 선택(선택 사항)
+    if (displayed && missing.length > 0) {
+      alert("⚠️ 데이터셋 #" + (d+1) + "에서 아래 이미지 파일을 찾지 못했습니다.\n - "
+            + missing.join("\n - "));
+
+      continue;
+    }
 
     /* 3-1) gIdx(레이어 번호) 찾기 – 기존 로직 유지 */
     var gIdx = null;
@@ -168,24 +225,6 @@
     var srcLayer;
     try { srcLayer = doc.layers.getByName("Artboard_" + gIdx); }
     catch (_) { continue; }
-
-    // /* 3-2) 원본 레이어(srcLayer) 얻은 직후 ─ 여기에 삽입 */
-    // (function () {
-    //     var used = {};                          // 중복 제거용 해시
-    //     for (var k = 0; k < srcLayer.pageItems.length; k++)
-    //         used[srcLayer.pageItems[k].artboard] = true;
-
-    //     var abList = [];                        // 고유 아트보드 번호 배열
-    //     for (var key in used) if (used.hasOwnProperty(key)) abList.push(+key);  // 숫자 변환
-
-    //     abList.sort(function (a, b) { return a - b; });   // 보기 좋게 정렬
-
-    //     alert(
-    //         "DS #" + (d + 1) +
-    //         "  |  사용된 아트보드: " + abList.join(", ") +
-    //         "  (총 " + abList.length + "개)"
-    //     );
-    // })();
 
 
     /* 3-3) 앞/뒤 판별 */
@@ -245,20 +284,6 @@
     }
     var abBIdx = doc.artboards.length - 1;
 
-
-    // /* ── DEBUG: srcLayer 안 오브젝트의 artboard 분포 ── */
-    // (function () {
-    //     var cnt = {}, numNaN = 0;
-    //     for (var k = 0; k < srcLayer.pageItems.length; k++) {
-    //         var idx = srcLayer.pageItems[k].artboard;   // -1, 0, 1 …
-    //         if (isNaN(idx)) { numNaN++; idx = "NaN"; }
-    //         cnt[idx] = (cnt[idx] || 0) + 1;
-    //     }
-    //     var msg = "DS #" + (d+1) + "  artboard 분포\n";
-    //     for (var key in cnt) msg += "  [" + key + "] ▶ " + cnt[key] + "\n";
-    //     alert(msg);
-    // })();
-
     /* 3-6) 앞·뒤 그룹 복제 + 아이템 배열 */
     var grpF = outLayer.groupItems.add(); grpF.name = "DS" + (d + 1) + "_" + gIdx + "_Front";
     var grpB = outLayer.groupItems.add(); grpB.name = "DS" + (d + 1) + "_" + gIdx + "_Back";
@@ -274,9 +299,6 @@
         itemsB.push( pit.duplicate(grpB, ElementPlacement.PLACEATEND) );
     }
 
-    // if (itemsB.length === 0) {
-    //   alert("⚠️  DS #" + (d + 1) + " : 뒷면 항목이 없습니다!");
-    // }
 
     /* 3-7) 1차 정렬 → Ungroup → 2차(최종) 정렬 */
     alignGroup(grpF, abFIdx);

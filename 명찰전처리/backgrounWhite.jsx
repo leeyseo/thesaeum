@@ -26,62 +26,56 @@
   var restoreHide  = !bottomLayer.visible;
   if (restoreLock) bottomLayer.locked = false;
   if (restoreHide) bottomLayer.visible = true;
+  
 
   /* 흰색 객체 */
   var white = new RGBColor(); white.red = white.green = white.blue = 255;
 
-  /* ── 1. 각 아트보드마다 배경 처리 ── */
+  /* ── 1. 각 아트보드마다: 클리핑 패스만 흰색으로, 이동/추가 금지 ── */
   for (var ai = 0; ai < abCount; ai++) {
-
     var abRect = doc.artboards[ai].artboardRect; // [L,T,R,B]
     var abLeft = abRect[0], abTop = abRect[1],
         abW    = abRect[2] - abRect[0],
         abH    = abRect[1] - abRect[3];
 
-    var found = false;
+    var tol = 1; // 허용 오차(포인트)
+    function near(a,b){ return Math.abs(a-b) < tol; }
 
-    /* 1-1) 배경 후보 검색 */
+    // 문서 전체에서 "아트보드와 같은 크기/위치"의 **클리핑 패스**만 찾는다
     for (var j = 0; j < doc.pageItems.length; j++) {
       var it = doc.pageItems[j];
       if (it.locked || it.hidden) continue;
 
-      var vb = it.visibleBounds;               // [L,T,R,B]
-      var w  = vb[2] - vb[0], h = vb[1] - vb[3];
+      // ✦ 핵심: 클리핑 패스만 대상
+      if (it.typename !== "PathItem" || !it.clipping) continue;
 
-      var sameSize = Math.abs(w - abW) < 1 && Math.abs(h - abH) < 1;
-      var samePos  = Math.abs(vb[0] - abLeft) < 1 && Math.abs(vb[1] - abTop) < 1;
-      if (!sameSize || !samePos) continue;     // 아트보드와 정확히 일치한 것만
+      // 클리핑 패스는 geometricBounds 기준이 정확
+      var gb = it.geometricBounds; // [L,T,R,B]
+      var w  = gb[2] - gb[0], h = gb[1] - gb[3];
 
-      /* ── (A) 이미 흰색이면 그냥 통과 ── */
-      if (it.filled && it.fillColor.typename === "RGBColor") {
-        var fc = it.fillColor;
-        if (fc.red === 255 && fc.green === 255 && fc.blue === 255) {
-          found = true;        // 흰 배경 존재 → 추가 작업 없음
-          break;
+      var sameSize = near(w, abW) && near(h, abH);
+      var samePos  = near(gb[0], abLeft) && near(gb[1], abTop);
+      if (!sameSize || !samePos) continue;
+
+      // 이동 금지! 필요 시 색만 흰색으로
+      try {
+        var needPaint = (!it.filled || it.fillColor.typename === "NoColor");
+        if (!needPaint && it.fillColor.typename === "RGBColor") {
+          var fc = it.fillColor;
+          needPaint = (fc.red !== 255 || fc.green !== 255 || fc.blue !== 255);
         }
-      }
-
-      /* ── (B) 투명 → 흰색 변환 ── */
-      if (!it.filled || it.fillColor.typename === "NoColor") {
-        it.filled    = true;
-        it.fillColor = white;
-      }
-
-      /* ── (C) 흰색이 아니면 색은 유지하되 뒤로 보내기 ── */
-      it.move(bottomLayer, ElementPlacement.PLACEATEND);
-      it.zOrder(ZOrderMethod.SENDTOBACK);
-      found = true;
-      break;
+        if (needPaint) {
+          it.filled = true;
+          var white = new RGBColor(); white.red = white.green = white.blue = 255;
+          it.fillColor = white;
+        }
+      } catch(_) {}
+      break; // 이 아트보드 처리 끝
     }
 
-    /* 1-2) 후보가 없으면 새 사각형 생성 */
-    if (!found) {
-      var bg = bottomLayer.pathItems.rectangle(abTop, abLeft, abW, abH);
-      bg.fillColor = white;
-      bg.stroked   = false;
-      bg.zOrder(ZOrderMethod.SENDTOBACK);
-    }
+    // 요구사항: 클리핑 패스를 못 찾으면 **아무 것도 생성하지 않음** (사각형 추가 X)
   }
+
 
   /* ── 2. 레이어 상태 복구 ── */
   if (restoreLock) bottomLayer.locked  = true;
