@@ -20,22 +20,14 @@
   var basePath = input.replace(/ /g, "-"); // 경로·파일명용
   /* ❶ ‘뱃지’ 여부에 따라 허용 필드 수가 다름 */
   var isCarrierTag = /사원증/i.test(baseOrig); 
+  var hasBlackWhite = /블랙|화이트/i.test(baseOrig);  // ← 블랙/화이트 감지
+
 
 
   var parts = baseOrig.split("_");
 
   var isBadge = parts[0].indexOf("뱃지") !== -1;
   var FONT_SIZE_BADGE    = 8;   // 뱃지일 때 (확 줄임)
-  var FONT_SIZE_NAMETAG  = 36;   // 일반 명찰
-  var FONT_SIZE_CARRIER  = 12;   // 캐리어 네임택(기존과 동일)
-  /* ❷ 형식 검사 */
-  /* ❷ 형식 검사 */
-  // if ( (!isBadge  && !isCarrierTag && parts.length < 7) ||   // 일반 명찰 ≥7
-  //     ( (isBadge || isCarrierTag) && parts.length < 6) ) {  // 뱃지·캐리어네임택 ≥6
-  //   alert("❌ 입력 형식 오류");
-  //   return;
-  // }
-  /* ❸ 필드 해석 */
 
   var imgKey   = (parts[0].indexOf("엣지") !== -1 ? "엣지_" : "") +
                  parts[1] + "_" + parts[2];       // 배경키
@@ -46,7 +38,7 @@
   }
 
     /* 배경 이미지 & 목업 */
-  if (!isCarrierTag) {                     // ← 캐리어네임택이면 배경을 아예 안 읽음
+  if (!isCarrierTag&& !hasBlackWhite) {                     // ← 캐리어네임택이면 배경을 아예 안 읽음
     var bgImg  = new File("C:/work/img/" + imgKey + ".png");
     if (!bgImg.exists) {
       alert("❌ 배경 이미지 없음:\n" + bgImg.fsName);
@@ -279,7 +271,7 @@
     doc.exportFile(tmpPng, ExportType.PNG24, pOpt);
 
     var siAnFile = new File(Folder.temp + "/__siAn__" + abIdx + ".jpg");
-   if (isCarrierTag) {
+   if (isCarrierTag|| hasBlackWhite) {
     /* ── 배경 없이 디자인만 JPG ── */
     var jOpt2 = new ExportOptionsJPEG();
     jOpt2.qualitySetting     = 100;
@@ -368,10 +360,12 @@
       var frameW   = Math.max(50, maxWidth - margin * 2);
 
       // 사원증이면 하단, 아니면 상단에 박스
-      var frameH   = isCarrierTag ? 120 : (isBadge ? 140 : 200);
-      var baseSize = isCarrierTag ? 12  : (isBadge ? 14 : 36);
-      var minSize  = isCarrierTag ?  8  : (isBadge ?  8 : 16);
-      var topY = isCarrierTag ? (frameH -60) : (TOP_SPACE - 20);
+      var smallText = (isCarrierTag || hasBlackWhite);
+
+      var frameH   = smallText ? 120 : (isBadge ? 140 : 200);
+      var baseSize = smallText ? 12  : (isBadge ? 14  : 36);
+      var minSize  = smallText ?  8  : (isBadge ?  8  : 16);
+      var topY     = smallText ? (frameH - 60) : (TOP_SPACE - 20);
 
       function makeArea(sz, h) {
         var rect = tempDoc.pathItems.rectangle(topY, margin, frameW, h);
