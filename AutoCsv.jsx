@@ -13,59 +13,81 @@
   if (!idm) { alert("❌ 주문번호 추출 실패"); return; }
   var orderId = idm[1]; // 예: 20250814-0001677-01
 
-  /* 2) CSV 경로 구성: C:/work/<id>/<id>.csv  (슬래시는 / 사용) */
-  var csvPath = "C:/work/" + orderId + "/" + orderId +"_new"+ ".csv";
+  /* 2) CSV 경로 구성: C:/work/<id>/<id>_new.csv */
+  var csvPath = "C:/work/" + orderId + "/" + orderId + "_new" + ".csv";
   var csvFile = new File(csvPath);
   if (!csvFile.exists) {
-    // 보조: 같은 폴더의 .CSV(대문자) 또는 .xml도 찾아봄
     var csvAlt = new File("C:/work/" + orderId + "/" + orderId + "_add" + ".csv");
     if (csvAlt.exists) {
       return;
-    }
-    else {
+    } else {
       return;
     }
   }
 
-  /* 3) 변수 라이브러리 불러오기 (CSV 또는 XML 모두 지원) */
+  /* 3) 변수 라이브러리 불러오기 (CSV 또는 XML 모두 지원이라고 적혀있지만,
+        실제로는 importVariables는 XML만 지원한다는 점 참고) */
   try {
-    // Illustrator DOM: Document.importVariables(File)
     doc.importVariables(csvFile);
   } catch (e) {
     alert("❌ 변수 라이브러리 불러오기 실패:\n" + e);
     return;
   }
 
-  /* 4) 보호 텍스트(홍길동, hong gil dong) 원복 + 첫 데이터셋 미리보기 */
-var PROTECT_VALUES = ["홍길동","길동", "honggildong","gildong"];
+  /* 4) 보호 텍스트 원복 + 첫 데이터셋 미리보기 (정규화·부분포함 매칭) */
 
-function _norm(s) { return (s || "").toLowerCase().replace(/[\s\-\_\.]+/g, ""); } // 공백/기호 무시
-function _trim(s) { return (s || "").replace(/^\s+|\s+$/g, ""); }
+  // 보호어 원본 리스트
+  var PROTECT_VALUES = ["홍길동", "길동", "honggildong", "gildong"];
 
-var keepFrames = [], keepTexts = [];
+  // ★ CHANGED: 더 강한 정규화 함수
+  //  - 영문 소문자화
+  //  - 한글/영문/숫자만 남기고 나머지(공백·특수문자 등) 제거
+  function _normalize(s) {                       // ★ CHANGED
+    s = (s || "").toLowerCase();
+    return s.replace(/[^0-9a-z\uac00-\ud7a3]+/g, "");
+  }
 
-// 4-1) 표시 전: 보호 대상 텍스트프레임 수집
-for (var i = 0; i < doc.textFrames.length; i++) {
-  var tf = doc.textFrames[i];
-  if (tf.locked || tf.hidden) continue;                // 편집 불가면 제외
-  var txt = _trim(tf.contents);
-  var nrm = _norm(txt);
-  for (var k = 0; k < PROTECT_VALUES.length; k++) {
-    if (nrm === _norm(PROTECT_VALUES[k])) {
-      keepFrames.push(tf);
-      keepTexts.push(tf.contents);                      // 정확히 원본을 저장
-      break;
+  function _trim(s) { return (s || "").replace(/^\s+|\s+$/g, ""); }
+
+  // ★ CHANGED: 보호어를 미리 정규화해 둔다
+  var PROTECT_TOKENS = [];                       // ★ CHANGED
+  for (var p = 0; p < PROTECT_VALUES.length; p++) {
+    PROTECT_TOKENS[PROTECT_TOKENS.length] = _normalize(PROTECT_VALUES[p]);
+  }
+
+  var keepFrames = [], keepTexts = [];
+
+  // 4-1) 표시 전: 보호 대상 텍스트프레임 수집 (정규화 후 '부분 포함' 매칭)
+  for (var i = 0; i < doc.textFrames.length; i++) {
+    var tf = doc.textFrames[i];
+    if (tf.locked || tf.hidden) continue; // 편집 불가면 제외
+
+    var raw = _trim(tf.contents);
+    var nrm = _normalize(raw);            // ★ CHANGED: 새 정규화 사용
+
+    // ★ CHANGED: '완전 동일(===)' → '부분 포함(indexOf != -1)'
+    var protectHit = false;               // ★ CHANGED
+    for (var k = 0; k < PROTECT_TOKENS.length; k++) {
+      var token = PROTECT_TOKENS[k];
+      if (token && nrm.indexOf(token) !== -1) { // 부분포함
+        protectHit = true;
+        break;
+      }
+    }
+
+    if (protectHit) {
+      keepFrames[keepFrames.length] = tf;
+      keepTexts[keepTexts.length] = tf.contents; // 원본 저장
     }
   }
-}
 
-// 4-2) 첫 데이터셋 표시
-var dsCount = doc.dataSets.length;
-try { if (dsCount > 0) doc.dataSets[0].display(); } catch (_) {}
+  // 4-2) 첫 데이터셋 표시
+  var dsCount = doc.dataSets.length;
+  try { if (dsCount > 0) doc.dataSets[0].display(); } catch (_){}
 
-// 4-3) 표시 후: 보호 대상 원복
-for (i = 0; i < keepFrames.length; i++) {
-  try { keepFrames[i].contents = keepTexts[i]; } catch (_) {}
-}
+  // 4-3) 표시 후: 보호 대상 원복
+  for (i = 0; i < keepFrames.length; i++) {
+    try { keepFrames[i].contents = keepTexts[i]; } catch (_){}
+  }
 
 })();

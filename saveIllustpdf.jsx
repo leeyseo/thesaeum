@@ -13,42 +13,141 @@
     return;
   }
   if (doc.dataSets.length === 0) { alert("데이터셋이 없습니다."); return; }
+
   var curName = doc.name.replace(/\.ai$/i, "");
   if (curName.indexOf("디자이너용") !== -1) {
     alert("⚠️ 디자이너용 미리보기로 작업하셨습니다. f3->f9은 금지되어있습니다. 처음부터 다시 작업하세요");
     return;
   }
 
+  var nameNoExt = decodeURI(doc.name).replace(/\.ai$/i, "");
+  var mm = nameNoExt.match(/_([0-9]+)_(\d{8}-\d{7}(?:-\d+)?)/);
+  if (!mm) {
+    alert("❌ 파일명에서 '_<개수>_YYYYMMDD-#######(-##)' 패턴을 찾지 못했습니다.\n예: ..._3_20250902-0002919-01_1");
+    return;
+  }
+  var parsedCount = parseInt(mm[1], 10);
+  var orderBlock  = mm[2];
+  if (!parsedCount || parsedCount < 1) {
+    alert("❌ 파일명에서 유효한 개수를 읽지 못했습니다: '" + mm[1] + "'");
+    return;
+  }
+
+  // 키워드 리스트 관리
+  var DOUBLE_WORDS = ["사원증", "명함"];  // 있으면 양면 처리 대상
+  var EXCLUDE_DOUBLE_WORDS = ["오로라"];   // 포함되면 양면 예외
+
+  function containsAny(hay, arr) {
+    if (!hay) return false;
+    for (var i = 0; i < arr.length; i++) {
+      var w = arr[i];
+      if (w && hay.indexOf(w) !== -1) return true; // 문자열 indexOf는 ES3 OK
+    }
+    return false;
+  }
+
+  var hasDouble = containsAny(nameNoExt, DOUBLE_WORDS);
+  var hasExclude = containsAny(nameNoExt, EXCLUDE_DOUBLE_WORDS);
+
+  var expectedBoards = parsedCount;
+  if (!hasExclude && hasDouble) expectedBoards = parsedCount * 2;
+
+  var actualBoards = doc.artboards.length;
+  if (actualBoards !== expectedBoards) {
+    var msgA = "🚫 대지 개수 불일치로 실행을 중단합니다.\n\n"
+             + "• 주문 블록: " + orderBlock + "\n"
+             + "• 파일명에서 읽은 개수 N: " + parsedCount + ( (!hasExclude && hasDouble) ? "  (양면 → ×2 적용)" : "" ) + "\n"
+             + "• 필요 대지수: " + expectedBoards + "\n"
+             + "• 실제 대지수: " + actualBoards + "\n\n"
+             + "규칙: 파일명에 '오로라'가 없고, '사원증/명함'이 포함되면 N×2 대지가 필요합니다.";
+    alert(msgA);
+    return;
+  }
+
+  /* =========================
+     0) 실행 전 텍스트 정규화 검사 (포함되면 알럿 후 종료)
+     ========================= */
+  // 보호어 원본 목록
+  var PROTECT_VALUES = ["홍길동", "길동", "honggildong", "gildong"];
+
+  // 정규화: 영문 소문자화 + 한글/영문/숫자만 유지 (공백·특수문자 제거)
+  function _normalize(s) {
+    s = (s || "").toLowerCase();
+    return s.replace(/[^0-9a-z\uac00-\ud7a3]+/g, "");
+  }
+  function _trim(s) { return (s || "").replace(/^\s+|\s+$/g, ""); }
+
+  // 보호어 정규화(ES3: 배열 indexOf 미사용)
+  var tokens = [];
+  var i, j;
+  for (i = 0; i < PROTECT_VALUES.length; i++) {
+    tokens[tokens.length] = _normalize(PROTECT_VALUES[i]);
+  }
+
+  // 모든 텍스트프레임 검사
+  var hits = []; // 발견된 원문을 몇 개만 모음
+  for (i = 0; i < doc.textFrames.length; i++) {
+    var tf = doc.textFrames[i];
+    if (tf.locked || tf.hidden) continue;
+
+    var raw  = _trim(tf.contents);
+    if (!raw) continue;
+
+    var norm = _normalize(raw);
+    var found = false;
+    for (j = 0; j < tokens.length; j++) {
+      var tok = tokens[j];
+      if (tok && norm.indexOf(tok) !== -1) { // 부분 포함 매칭
+        found = true;
+        break;
+      }
+    }
+    if (found) {
+      hits[hits.length] = raw;
+      if (hits.length >= 8) break; // 너무 많으면 적당히 자름
+    }
+  }
+
+  if (hits.length > 0) {
+    var msg = "🚫 보호어(정규화 기준) 포함 텍스트가 발견되어 실행을 중단합니다.\n\n";
+    for (i = 0; i < hits.length; i++) {
+      var sample = hits[i];
+      if (sample.length > 40) sample = sample.substring(0, 40) + "…";
+      msg += "• " + sample + "\n";
+    }
+    alert(msg);
+    return; // 즉시 종료
+  }
+  /* =========================
+     (검사 통과 시 이하 기존 로직 실행)
+     ========================= */
+
   var fileStem = decodeURI(doc.name).replace(/\.ai$/i, "");
   var m = fileStem.match(/_([0-9]{8}-[0-9]{7}(?:-\d+)?)(?:\+([^+]+))?$/);
   if (m) {
     var reportPart = (m[2] || "").replace(/^\s+|\s+$/g, "");
-
     if (reportPart.toLowerCase().indexOf("b") !== -1) {
-      var workFolder = new Folder("C:/work/작업물");
-      if (!workFolder.exists) workFolder.create();
+      var workFolderA = new Folder("C:/work/작업물");
+      if (!workFolderA.exists) workFolderA.create();
 
-      // 2) pdf 때와 동일한 베이스 이름 추출 (…_YYYYMMDD-#######(-##) 까지)
+      // …_YYYYMMDD-#######(-##) 까지
       var fullNameA = decodeURI(doc.name).replace(/\.ai$/i, "");
       var matchFullA = fullNameA.match(/^(.*?_\d{8}-\d{7}(?:-\d+)?)/);
-      var inputNameA = matchFullA ? matchFullA[1] : fullNameA; // 안전장치
+      var inputNameA = matchFullA ? matchFullA[1] : fullNameA;
 
-      // 3) AI 파일 복사 (pdf 복사와 동일하게: 중복 체크 없이 그대로 복사)
-      var aiDest = new File(workFolder.fsName + "/" + inputNameA + ".ai");
+      // AI 파일 복사
+      var aiDest = new File(workFolderA.fsName + "/" + inputNameA + ".ai");
       doc.fullName.copy(aiDest);
       return;
     }
   }
 
-
-  
-
-  // 🔧 ES3 호환 공백 제거 함수 (trim 대체)
+  // ── 유틸
   function isEmpty(str) {
     return str === null || str.replace(/^\s+|\s+$/g, '') === "";
   }
 
-  // 🔤 파일명 입력
+  // 파일명 파싱
   var fullName = decodeURI(doc.name).replace(/\.ai$/i, "");
   var matchFull = fullName.match(/^(.*?_\d{8}-\d{7}(?:-\d+)?)/);
   if (!matchFull) {
@@ -56,8 +155,8 @@
     return;
   }
   var inputName = matchFull[1];
-  
-  // 📄 PDF 옵션
+
+  // PDF 옵션
   var pdfOpts = new PDFSaveOptions();
   pdfOpts.compatibility       = PDFCompatibility.ACROBAT5;
   pdfOpts.preserveEditability = false;
@@ -71,7 +170,7 @@
     pdfOpts.saveMultipleArtboards = false;
   }
 
-  // 📁 작업물 폴더 항상 준비
+  // 작업물 폴더
   var workFolder = new Folder("C:/work/작업물");
   if (!workFolder.exists) workFolder.create();
 
@@ -82,32 +181,30 @@
     return;
   }
 
-  // ✅ 입력 정상 → 작업결과 + 작업물 모두 저장
   var match = inputName.match(/_([0-9]{8}-[0-9]{7}(?:-\d+)?)/);
   if (!match) {
     alert("❌ 파일명 마지막에 '_YYYYMMDD-#######' 형식이 필요합니다.");
     return;
   }
 
-
   var resultFolder = docFolder;
 
-  // 중복 방지 파일 생성 함수
+  // 중복 방지 파일 생성
   function getUniqueFile(folder, baseName) {
     var f = new File(folder.fsName + "/" + baseName + ".pdf");
-    var i = 1;
+    var idx = 1;
     while (f.exists) {
-      f = new File(folder.fsName + "/" + baseName + "_" + i + ".pdf");
-      i++;
+      f = new File(folder.fsName + "/" + baseName + "_" + idx + ".pdf");
+      idx++;
     }
     return f;
   }
 
-  // 1️⃣ 작업결과 폴더에 중복 방지 저장 (doc.saveAs는 딱 1번만)
+  // 1) 작업결과 폴더 저장
   var file1 = getUniqueFile(resultFolder, inputName);
   doc.saveAs(file1, pdfOpts);
 
-  // 2️⃣ 작업물 폴더에는 파일 복사
+  // 2) 작업물 폴더 복사
   var file2 = new File(workFolder.fsName + "/" + inputName + ".pdf");
-  file1.copy(file2);  // ← 복사만 함
+  file1.copy(file2);
 })();
