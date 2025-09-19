@@ -109,14 +109,14 @@
   }
 
   if (hits.length > 0) {
-    var msg = "🚫 보호어(정규화 기준) 포함 텍스트가 발견되어 실행을 중단합니다.\n\n";
+    var msg = "🚫 보호어(정규화 기준) 포함 텍스트가 발견되었습니다. 확인바랍니다.\n\n";
     for (i = 0; i < hits.length; i++) {
       var sample = hits[i];
       if (sample.length > 40) sample = sample.substring(0, 40) + "…";
       msg += "• " + sample + "\n";
     }
     alert(msg);
-    return; // 즉시 종료
+    // return; // 즉시 종료
   }
   /* =========================
      (검사 통과 시 이하 기존 로직 실행)
