@@ -83,12 +83,33 @@
   for (i = 0; i < PROTECT_VALUES.length; i++) {
     tokens[tokens.length] = _normalize(PROTECT_VALUES[i]);
   }
+  function isScannableTextFrame(tf) {
+    if (!tf) return false;
+
+    // 1) 자신 상태
+    if (tf.locked || tf.hidden) return false;
+
+    // 2) 소속 레이어 상태 (레이어 숨김/잠금이면 제외)
+    var lay = tf.layer;
+    if (lay) {
+      if (lay.locked) return false;
+      if (lay.visible === false) return false; // 숨겨진 레이어 제외
+    }
+
+    // 3) 상위 그룹/페이지아이템 체인 상태 (레이어/문서 제외)
+    var p = tf.parent;
+    while (p && p.typename && p.typename !== "Document") {
+      if (p.locked || p.hidden) return false; // 숨김/잠금 그룹 제외
+      p = p.parent;
+    }
+    return true;
+  }
 
   // 모든 텍스트프레임 검사
   var hits = []; // 발견된 원문을 몇 개만 모음
   for (i = 0; i < doc.textFrames.length; i++) {
     var tf = doc.textFrames[i];
-    if (tf.locked || tf.hidden) continue;
+    if (!isScannableTextFrame(tf)) continue;
 
     var raw  = _trim(tf.contents);
     if (!raw) continue;
