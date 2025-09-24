@@ -10,8 +10,8 @@
 	]
 	/keyIndex 2
 	/colorIndex 0
-	/isOpen 0
-	/eventCount 12
+	/isOpen 1
+	/eventCount 13
 	/event-1 {
 		/useRulersIn1stQuadrant 0
 		/internalName (adobe_selectAll)
@@ -292,6 +292,33 @@
 			/showInPalette -1
 			/type (ustring)
 			/value [ 17
+				5f30303030303243423937324131323230
+			]
+		}
+		/parameter-2 {
+			/key 1818455661
+			/showInPalette -1
+			/type (ustring)
+			/value [ 7
+				4175746f437376
+			]
+		}
+	}
+	/event-13 {
+		/useRulersIn1stQuadrant 0
+		/internalName (adobe_commandManager)
+		/localizedName [ 20
+			eca091eab7bc20eba994eb89b420ed95adebaaa9
+		]
+		/isOpen 0
+		/isOn 1
+		/hasDialog 0
+		/parameterCount 2
+		/parameter-1 {
+			/key 1769238125
+			/showInPalette -1
+			/type (ustring)
+			/value [ 17
 				5f30303030303244464638423831333730
 			]
 		}
@@ -311,7 +338,7 @@
 	]
 	/keyIndex 3
 	/colorIndex 0
-	/isOpen 0
+	/isOpen 1
 	/eventCount 14
 	/event-1 {
 		/useRulersIn1stQuadrant 0
@@ -598,15 +625,15 @@
 			/showInPalette -1
 			/type (ustring)
 			/value [ 17
-				5f30303030303244464638423831343730
+				5f30303030303230374638354130453130
 			]
 		}
 		/parameter-2 {
 			/key 1818455661
 			/showInPalette -1
 			/type (ustring)
-			/value [ 14
-				756e67726f70417274626f617264
+			/value [ 21
+				73617665496c6c757374746d7044657369676e6572
 			]
 		}
 	}
@@ -625,15 +652,15 @@
 			/showInPalette -1
 			/type (ustring)
 			/value [ 17
-				5f30303030303244464638423831354330
+				5f30303030303244464638423831343730
 			]
 		}
 		/parameter-2 {
 			/key 1818455661
 			/showInPalette -1
 			/type (ustring)
-			/value [ 13
-				73617665496c6c757374746d70
+			/value [ 14
+				756e67726f70417274626f617264
 			]
 		}
 	}
@@ -698,7 +725,7 @@
 	]
 	/keyIndex 4
 	/colorIndex 0
-	/isOpen 0
+	/isOpen 1
 	/eventCount 1
 	/event-1 {
 		/useRulersIn1stQuadrant 0
@@ -734,7 +761,7 @@
 	]
 	/keyIndex 5
 	/colorIndex 0
-	/isOpen 0
+	/isOpen 1
 	/eventCount 9
 	/event-1 {
 		/useRulersIn1stQuadrant 0
@@ -954,7 +981,7 @@
 	]
 	/keyIndex 6
 	/colorIndex 0
-	/isOpen 0
+	/isOpen 1
 	/eventCount 6
 	/event-1 {
 		/useRulersIn1stQuadrant 0
@@ -1161,7 +1188,7 @@
 	]
 	/keyIndex 9
 	/colorIndex 0
-	/isOpen 0
+	/isOpen 1
 	/eventCount 9
 	/event-1 {
 		/useRulersIn1stQuadrant 0
@@ -1259,15 +1286,15 @@
 			/showInPalette -1
 			/type (ustring)
 			/value [ 17
-				5f30303030303244464638423831314230
+				5f30303030303244464638423831313930
 			]
 		}
 		/parameter-2 {
 			/key 1818455661
 			/showInPalette -1
 			/type (ustring)
-			/value [ 21
-				6d756c74695369616e734d756c74694c6179657232
+			/value [ 20
+				6d756974695369616e734d756c74694c61796572
 			]
 		}
 	}
@@ -1338,17 +1365,6 @@
 	}
 	/event-8 {
 		/useRulersIn1stQuadrant 0
-		/internalName (adobe_createOutline)
-		/localizedName [ 19
-			ec9ca4eab3bdec84a020eba78ceb93a4eab8b0
-		]
-		/isOpen 0
-		/isOn 1
-		/hasDialog 0
-		/parameterCount 0
-	}
-	/event-9 {
-		/useRulersIn1stQuadrant 0
 		/internalName (adobe_commandManager)
 		/localizedName [ 20
 			eca091eab7bc20eba994eb89b420ed95adebaaa9
@@ -1374,6 +1390,17 @@
 			]
 		}
 	}
+	/event-9 {
+		/useRulersIn1stQuadrant 0
+		/internalName (adobe_createOutline)
+		/localizedName [ 19
+			ec9ca4eab3bdec84a020eba78ceb93a4eab8b0
+		]
+		/isOpen 0
+		/isOn 1
+		/hasDialog 0
+		/parameterCount 0
+	}
 }
 /action-8 {
 	/name [ 9
@@ -1381,7 +1408,7 @@
 	]
 	/keyIndex 10
 	/colorIndex 0
-	/isOpen 0
+	/isOpen 1
 	/eventCount 6
 	/event-1 {
 		/useRulersIn1stQuadrant 0
@@ -1552,7 +1579,7 @@
 	]
 	/keyIndex 11
 	/colorIndex 0
-	/isOpen 0
+	/isOpen 1
 	/eventCount 7
 	/event-1 {
 		/useRulersIn1stQuadrant 0
@@ -1718,7 +1745,7 @@
 	]
 	/keyIndex 12
 	/colorIndex 0
-	/isOpen 0
+	/isOpen 1
 	/eventCount 1
 	/event-1 {
 		/useRulersIn1stQuadrant 0
