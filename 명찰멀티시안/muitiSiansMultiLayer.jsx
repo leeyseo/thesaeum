@@ -40,11 +40,59 @@
     }
   }
   if (!layVar) { alert("변수 '레이어' 가 없습니다."); return; }
+  // [추가] 그래픽 변수 수집
+  var imgVars = [];
+  for (i = 0; i < doc.variables.length; i++) {
+    try {
+      if (doc.variables[i].kind == VariableKind.GRAPHICS) imgVars.push(doc.variables[i]);
+    } catch (e) {}
+  }
+
+  // [추가] 헬퍼들 (ES3 호환)
+  function _fs(p){ try{ return decodeURI(p.fsName || p.fullName || p.toString()); } catch(e){ return ""+p; } }
+  function getFileFromVarValue(val){
+    var f = null;
+    if (!val) return null;
+    if (val instanceof File) return val;
+    try { if (val.file) return val.file; } catch(e){}
+    try {
+      if (val.fsName || val.fullName || val.name) return new File(val.fsName || val.fullName || val.name);
+    } catch(e){}
+    try { return new File(val.toString()); } catch(e){}
+    return null;
+  }
+  function listMissingGraphics(ds){
+    var missing = [];
+    for (var k = 0; k < imgVars.length; k++){
+      var v = imgVars[k], val = null, f = null;
+      try { val = ds.getVariableValue(v); } catch(e){}
+      f = getFileFromVarValue(val);
+      if (!f) { missing.push(v.name + " → (값 없음)"); continue; }
+      if (!f.exists) missing.push(v.name + " → " + _fs(f));
+    }
+    return missing;
+  }
+
 
   // 데이터셋 반복
   for (var d = 0; d < doc.dataSets.length; d++) {
     var ds = doc.dataSets[d];
-    ds.display(); $.sleep(60);
+
+    // 이미지 누락 선검사
+    var missing = listMissingGraphics(ds);
+    if (missing.length > 0) {
+      alert("⚠️ 데이터셋 #" + (d+1) + " 이미지 파일을 찾을 수 없습니다.\n - " + missing.join("\n - "));
+      continue; // 이 DS는 건너뜀 (원하면 주석 처리)
+    }
+
+    // 안전 표시
+    try {
+      ds.display(); $.sleep(60);
+    } catch (e) {
+      alert("⚠️ 데이터셋 #" + (d+1) + " 표시 오류: " + e);
+      continue;
+    }
+
 
     // 사용할 레이어 인덱스 판단
     var gIdx = null, lyrVal = null;
