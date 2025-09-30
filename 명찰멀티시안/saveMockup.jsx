@@ -21,6 +21,8 @@
   /* ❶ ‘뱃지’ 여부에 따라 허용 필드 수가 다름 */
   var isCarrierTag = /사원증/i.test(baseOrig); 
   var hasBlackWhite = /블랙|화이트/i.test(baseOrig);  // ← 블랙/화이트 감지
+  var SHOULD_COMPOSITE = (!isCarrierTag && !hasBlackWhite);
+  
 
 
 
@@ -158,25 +160,27 @@
   var hwakFile = uniq(basePath+ dupTag  + "_확정형");
   var mockFile = uniq(basePath+ dupTag  + "_시안전송목업용");
 
-  /* 2) 전경 PNG (배경 투명) */
-  doc.artboards.setActiveArtboardIndex(0);
-  app.executeMenuCommand("deselectall");
-  doc.selectObjectsOnActiveArtboard();
+  if (SHOULD_COMPOSITE) {   
+    /* 2) 전경 PNG (배경 투명) */
+    doc.artboards.setActiveArtboardIndex(0);
+    app.executeMenuCommand("deselectall");
+    doc.selectObjectsOnActiveArtboard();
 
-  var ab = doc.artboards[0].artboardRect, AW = ab[2] - ab[0], AH = ab[1] - ab[3],
-      tol = Math.max(10, AW * 0.02), sel = doc.selection;
-  for (var i = 0; i < sel.length; i++) {
-    var it = sel[i];
-    if (it.typename === "PathItem" && it.filled) {
-      var b = it.geometricBounds, w = b[2] - b[0], h = b[1] - b[3];
-      if (Math.abs(w - AW) <= tol && Math.abs(h - AH) <= tol) it.fillColor = new NoColor();
+    var ab = doc.artboards[0].artboardRect, AW = ab[2] - ab[0], AH = ab[1] - ab[3],
+        tol = Math.max(10, AW * 0.02), sel = doc.selection;
+    for (var i = 0; i < sel.length; i++) {
+      var it = sel[i];
+      if (it.typename === "PathItem" && it.filled) {
+        var b = it.geometricBounds, w = b[2] - b[0], h = b[1] - b[3];
+        if (Math.abs(w - AW) <= tol && Math.abs(h - AH) <= tol) it.fillColor = new NoColor();
+      }
     }
-  }
-  var tmpPng = new File(Folder.temp + "/__tmp_fg__.png");
-  var pOpt = new ExportOptionsPNG24();
-  pOpt.transparency = true; pOpt.antiAliasing = true; pOpt.artBoardClipping = true;
-  pOpt.horizontalScale = pOpt.verticalScale = 300;     // 300% (≈ 900 ppi)
-  doc.exportFile(tmpPng, ExportType.PNG24, pOpt);
+    var tmpPng = new File(Folder.temp + "/__tmp_fg__.png");
+    var pOpt = new ExportOptionsPNG24();
+    pOpt.transparency = true; pOpt.antiAliasing = true; pOpt.artBoardClipping = true;
+    pOpt.horizontalScale = pOpt.verticalScale = 300;     // 300% (≈ 900 ppi)
+    doc.exportFile(tmpPng, ExportType.PNG24, pOpt);
+}
 
   /* 공통 JPG 옵션 */
   var jOpt = new ExportOptionsJPEG();
@@ -245,53 +249,50 @@
     $.sleep(10);
 
     doc.artboards.setActiveArtboardIndex(abIdx);    // 해당 아트보드 선택
-    app.executeMenuCommand("deselectall");
-    doc.selectObjectsOnActiveArtboard();
+    if (SHOULD_COMPOSITE) {                      // ★ 추가 시작
+      app.executeMenuCommand("deselectall");
+      doc.selectObjectsOnActiveArtboard();
 
-    var ab = doc.artboards[abIdx].artboardRect,     // ← 해당 아트보드 기준
-        AW = ab[2] - ab[0], AH = ab[1] - ab[3],
-        tol = Math.max(10, AW * 0.02), sel = doc.selection;
+      var ab = doc.artboards[abIdx].artboardRect,
+          AW = ab[2] - ab[0], AH = ab[1] - ab[3],
+          tol = Math.max(10, AW * 0.02), sel = doc.selection;
 
-    for (var j = 0; j < sel.length; j++) {
-      var it = sel[j];
-      if (it.typename === "PathItem" && it.filled) {
-        var b = it.geometricBounds, w = b[2] - b[0], h = b[1] - b[3];
-        if (Math.abs(w - AW) <= tol && Math.abs(h - AH) <= tol) {
-          it.fillColor = new NoColor();
+      for (var j = 0; j < sel.length; j++) {
+        var it = sel[j];
+        if (it.typename === "PathItem" && it.filled) {
+          var b = it.geometricBounds, w = b[2] - b[0], h = b[1] - b[3];
+          if (Math.abs(w - AW) <= tol && Math.abs(h - AH) <= tol) {
+            it.fillColor = new NoColor();        // 배경 투명화
+          }
         }
       }
+
+      var tmpPng = new File(Folder.temp + "/__tmp_fg__" + abIdx + ".png");
+      var pOpt = new ExportOptionsPNG24();
+      pOpt.transparency = true;
+      pOpt.antiAliasing = true;
+      pOpt.artBoardClipping = true;
+      pOpt.horizontalScale = pOpt.verticalScale = 300;
+      doc.exportFile(tmpPng, ExportType.PNG24, pOpt);
+
+      // 기존 합성 그대로
+      composite(bgImg, tmpPng, siAnFile, 1, yShiftVal, null, null, null, null, "GmarketSans");
+      try { tmpPng.remove(); } catch (e) {}
+    }                                            // ★ 추가 끝
+    else {
+      // 기존 “블랙/화이트/사원증 → 바로 JPG” 그대로 유지
+      var jOpt2 = new ExportOptionsJPEG();
+      jOpt2.qualitySetting   = 100;
+      jOpt2.resolution       = isBadge ? 1200 : 600;
+      jOpt2.horizontalScale  = jOpt2.verticalScale = 100;
+      jOpt2.antiAliasing     = true;
+      jOpt2.optimized        = true;
+      jOpt2.artBoardClipping = true;
+      doc.exportFile(siAnFile, ExportType.JPEG, jOpt2);
     }
 
-    var tmpPng = new File(Folder.temp + "/__tmp_fg__" + abIdx + ".png");  // 파일명도 고유하게
-    var pOpt = new ExportOptionsPNG24();
-    pOpt.transparency = true;
-    pOpt.antiAliasing = true;
-    pOpt.artBoardClipping = true;
-    pOpt.horizontalScale = pOpt.verticalScale = 300;
-    doc.exportFile(tmpPng, ExportType.PNG24, pOpt);
-
-    var siAnFile = new File(Folder.temp + "/__siAn__" + abIdx + ".jpg");
-   if (isCarrierTag|| hasBlackWhite) {
-    /* ── 배경 없이 디자인만 JPG ── */
-    var jOpt2 = new ExportOptionsJPEG();
-    jOpt2.qualitySetting     = 100;
-    jOpt2.resolution         = isBadge ? 1200 : 600;
-    jOpt2.horizontalScale    = jOpt2.verticalScale = 100;
-    jOpt2.antiAliasing       = true;
-    jOpt2.optimized          = true;
-    jOpt2.artBoardClipping   = true;
-
-    // 현재 아트보드 → JPG
-    doc.exportFile(siAnFile, ExportType.JPEG, jOpt2);
-    // 배경 PNG는 건드리지 않으므로 bgImg 없어도 OK
-    } else {
-      /* ── 기존 Multiply 합성 ── */
-      composite(bgImg, tmpPng, siAnFile, 1, yShiftVal,
-                null, null, null, null, "GmarketSans");
-    }
-
-    try { tmpPng.remove(); } catch (e) {}
     compositeJPGs.push(siAnFile);
+
   }
 
 

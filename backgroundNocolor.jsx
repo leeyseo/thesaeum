@@ -4,6 +4,11 @@
   var doc = app.activeDocument,
       boards = [], fixed = 0;
   if (doc.dataSets.length === 0) { alert("데이터셋이 없습니다."); return; }
+  
+  var fname = decodeURI(doc.name).toLowerCase(); // 소문자로 비교
+  if (fname.indexOf("블랙") !== -1) {
+    return;
+  }
 
   /* 허용 비율 오차 (%) 및 최소 절대 오차(pt) */
   var RAT_TOL = 0.05,   // ±5 %
