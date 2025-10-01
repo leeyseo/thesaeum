@@ -20,8 +20,9 @@
   var basePath = input.replace(/ /g, "-"); // 경로·파일명용
   /* ❶ ‘뱃지’ 여부에 따라 허용 필드 수가 다름 */
   var isCarrierTag = /사원증/i.test(baseOrig); 
+  var isTag = /네임택/i.test(baseOrig); 
   var hasBlackWhite = /블랙|화이트/i.test(baseOrig);  // ← 블랙/화이트 감지
-  var SHOULD_COMPOSITE = (!isCarrierTag && !hasBlackWhite);
+  var SHOULD_COMPOSITE = (!isCarrierTag && !hasBlackWhite &&!isTag);
   
 
 
@@ -40,7 +41,7 @@
   }
 
     /* 배경 이미지 & 목업 */
-  if (!isCarrierTag&& !hasBlackWhite) {                     // ← 캐리어네임택이면 배경을 아예 안 읽음
+  if (!isCarrierTag&& !hasBlackWhite &&!isTag) {                     // ← 캐리어네임택이면 배경을 아예 안 읽음
     var bgImg  = new File("C:/work/img/" + imgKey + ".png");
     if (!bgImg.exists) {
       alert("❌ 배경 이미지 없음:\n" + bgImg.fsName);
@@ -155,32 +156,8 @@
 
   /* 사용 */
   var dupTag = getDupTag(outDir, baseOrig);  // "(1)" 또는 ""
-
-  var siAnFile = new File(Folder.temp + "/__siAn__.jpg");
   var hwakFile = uniq(basePath+ dupTag  + "_확정형");
   var mockFile = uniq(basePath+ dupTag  + "_시안전송목업용");
-
-  if (SHOULD_COMPOSITE) {   
-    /* 2) 전경 PNG (배경 투명) */
-    doc.artboards.setActiveArtboardIndex(0);
-    app.executeMenuCommand("deselectall");
-    doc.selectObjectsOnActiveArtboard();
-
-    var ab = doc.artboards[0].artboardRect, AW = ab[2] - ab[0], AH = ab[1] - ab[3],
-        tol = Math.max(10, AW * 0.02), sel = doc.selection;
-    for (var i = 0; i < sel.length; i++) {
-      var it = sel[i];
-      if (it.typename === "PathItem" && it.filled) {
-        var b = it.geometricBounds, w = b[2] - b[0], h = b[1] - b[3];
-        if (Math.abs(w - AW) <= tol && Math.abs(h - AH) <= tol) it.fillColor = new NoColor();
-      }
-    }
-    var tmpPng = new File(Folder.temp + "/__tmp_fg__.png");
-    var pOpt = new ExportOptionsPNG24();
-    pOpt.transparency = true; pOpt.antiAliasing = true; pOpt.artBoardClipping = true;
-    pOpt.horizontalScale = pOpt.verticalScale = 300;     // 300% (≈ 900 ppi)
-    doc.exportFile(tmpPng, ExportType.PNG24, pOpt);
-}
 
   /* 공통 JPG 옵션 */
   var jOpt = new ExportOptionsJPEG();
@@ -249,6 +226,9 @@
     $.sleep(10);
 
     doc.artboards.setActiveArtboardIndex(abIdx);    // 해당 아트보드 선택
+    // 회차별 고유 임시 JPG 경로(겹치지 않게 abIdx 부여)
+    var siAnFile = new File(Folder.temp + "/__siAn__" + abIdx + ".jpg");
+
     if (SHOULD_COMPOSITE) {                      // ★ 추가 시작
       app.executeMenuCommand("deselectall");
       doc.selectObjectsOnActiveArtboard();
@@ -304,6 +284,16 @@
 
   // 목업 배경 없이 시안전송 JPG + 텍스트만
   stackVertically(compositeJPGs, mockFile, userText, "GmarketSans");
+  // ── 회차별 임시 JPG 일괄 삭제 ──
+  for (var k = 0; k < compositeJPGs.length; k++) {
+    try {
+      var f = compositeJPGs[k];
+      // File 객체이든 문자열이든 모두 처리
+      var fileObj = (f instanceof File) ? f : new File(f);
+      if (fileObj.exists) fileObj.remove();
+    } catch (e) {}
+  }
+
 
   function stackVertically(images, outFile, userText, fontName)
   {
@@ -361,7 +351,7 @@
       var frameW   = Math.max(50, maxWidth - margin * 2);
 
       // 사원증이면 하단, 아니면 상단에 박스
-      var smallText = (isCarrierTag || hasBlackWhite);
+      var smallText = (isCarrierTag || hasBlackWhite || isTag);
 
       var frameH   = smallText ? 120 : (isBadge ? 140 : 200);
       var baseSize = smallText ? 12  : (isBadge ? 14  : 36);
@@ -418,9 +408,6 @@
 
 
 
-  /* 7) 임시 PNG 삭제 & 종료 */
-  try { tmpPng.remove(); } catch (e) {}
-  try { siAnFile.remove(); } catch (e) {}
   // alert("✅ JPG 3종 저장 완료 (Multiply 반영)");
 
 })();
