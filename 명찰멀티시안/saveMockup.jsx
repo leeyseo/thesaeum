@@ -264,7 +264,7 @@
       var jOpt2 = new ExportOptionsJPEG();
       jOpt2.qualitySetting   = 100;
       jOpt2.resolution       = isBadge ? 1200 : 600;
-      jOpt2.horizontalScale  = jOpt2.verticalScale = 100;
+      jOpt2.horizontalScale  = jOpt2.verticalScale = 300;
       jOpt2.antiAliasing     = true;
       jOpt2.optimized        = true;
       jOpt2.artBoardClipping = true;
@@ -326,7 +326,7 @@
 
     /* ── 2) 아트보드 크기 & 이미지 위치 ─────── */
     // 상단/하단 여백: 텍스트 있을 때 넉넉히
-    var TOP_SPACE    = (!isCarrierTag && userText) ? 100 : 0;  // 기존 150 → 180
+    var TOP_SPACE    = (!isCarrierTag && userText) ? 200 : 0;  // 기존 150 → 180
     var BOTTOM_SPACE = ( isCarrierTag && userText) ?  80 : 0;
 
     var artH = totalHeight + TOP_SPACE + BOTTOM_SPACE;
@@ -349,14 +349,16 @@
 
       var margin   = Math.min(60, maxWidth * 0.10);
       var frameW   = Math.max(50, maxWidth - margin * 2);
+      // var frameW = Math.round(maxWidth * 0.80);          // 텍스트 박스 폭 = 이미지 폭의 80%
+      // var margin = Math.round((maxWidth - frameW) / 2);  // 좌우 여백을 동일하게 배분(가운데 정렬)
 
       // 사원증이면 하단, 아니면 상단에 박스
       var smallText = (isCarrierTag || hasBlackWhite || isTag);
 
       var frameH   = smallText ? 120 : (isBadge ? 140 : 200);
-      var baseSize = smallText ? 12  : (isBadge ? 14  : 36);
+      var baseSize = smallText ? 25  : (isBadge ? 14  : 36);
       var minSize  = smallText ?  8  : (isBadge ?  8  : 16);
-      var topY     = smallText ? (frameH - 60) : (TOP_SPACE - 20);
+      var topY     = smallText ? (frameH - 0) : (TOP_SPACE - 40);
 
       function makeArea(sz, h) {
         var rect = tempDoc.pathItems.rectangle(topY, margin, frameW, h);

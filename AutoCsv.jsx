@@ -13,24 +13,54 @@
   if (!idm) { alert("❌ 주문번호 추출 실패"); return; }
   var orderId = idm[1]; // 예: 20250814-0001677-01
 
-  /* 2) CSV 경로 구성: C:/work/<id>/<id>_new.csv */
-  var csvPath = "C:/work/" + orderId + "/" + orderId + "_new" + ".csv";
-  var csvFile = new File(csvPath);
-  if (!csvFile.exists) {
-    var csvAlt = new File("C:/work/" + orderId + "/" + orderId + "_add" + ".csv");
-    if (csvAlt.exists) {
-      return;
-    } else {
-      return;
+  // /* 2) CSV 경로 구성: C:/work/<id>/<id>_new.csv */
+  // var csvPath = "C:/work/" + orderId + "/" + orderId + "_new" + ".csv";
+  // var csvFile = new File(csvPath);
+  // if (!csvFile.exists) {
+  //   var csvAlt = new File("C:/work/" + orderId + "/" + orderId + "_add" + ".csv");
+  //   if (csvAlt.exists) {
+  //     return;
+  //   } else {
+  //     return;
+  //   }
+  // }
+    /* 2) CSV 후보 경로 구성: _new → _add 순서로 탐색 */
+  var candidates = [
+    { path: "C:/work/" + orderId + "/" + orderId + "_new.csv", isNew: true },
+    { path: "C:/work/" + orderId + "/" + orderId + "_add.csv", isNew: false }
+  ];
+
+  var csvFile = null;
+  var isNewJob = false;
+
+  for (var c = 0; c < candidates.length; c++) {
+    var f = new File(candidates[c].path);
+    if (f.exists) {
+      csvFile = f;
+      isNewJob = candidates[c].isNew === true;
+      break;
     }
   }
+
+  if (!csvFile) {
+    // alert("❌ CSV 파일을 찾을 수 없습니다.\n"
+    //   + "시도한 경로:\n - " + candidates[0].path + "\n - " + candidates[1].path);
+    return;
+  }
+
 
   /* 3) 변수 라이브러리 불러오기 (CSV 또는 XML 모두 지원이라고 적혀있지만,
         실제로는 importVariables는 XML만 지원한다는 점 참고) */
   try {
     doc.importVariables(csvFile);
   } catch (e) {
-    alert("❌ 변수 라이브러리 불러오기 실패:\n" + e);
+    // alert("❌ 변수 라이브러리 불러오기 실패:\n" + e);
+    return;
+  }
+
+  /* 4) 신규건(_new)일 때만 보호 원복 + 첫 데이터셋 미리보기 */
+  if (!isNewJob) {
+    // 기타(_add) 건은 변수만 가져오고 끝.
     return;
   }
 
