@@ -13,18 +13,6 @@
   if (!idm) { alert("❌ 주문번호 추출 실패"); return; }
   var orderId = idm[1]; // 예: 20250814-0001677-01
 
-  // /* 2) CSV 경로 구성: C:/work/<id>/<id>_new.csv */
-  // var csvPath = "C:/work/" + orderId + "/" + orderId + "_new" + ".csv";
-  // var csvFile = new File(csvPath);
-  // if (!csvFile.exists) {
-  //   var csvAlt = new File("C:/work/" + orderId + "/" + orderId + "_add" + ".csv");
-  //   if (csvAlt.exists) {
-  //     return;
-  //   } else {
-  //     return;
-  //   }
-  // }
-    /* 2) CSV 후보 경로 구성: _new → _add 순서로 탐색 */
   var candidates = [
     { path: "C:/work/" + orderId + "/" + orderId + "_new.csv", isNew: true },
     { path: "C:/work/" + orderId + "/" + orderId + "_add.csv", isNew: false }
@@ -42,6 +30,10 @@
     }
   }
 
+  if (isNewJob) { 
+    return; 
+  }
+
   if (!csvFile) {
     // alert("❌ CSV 파일을 찾을 수 없습니다.\n"
     //   + "시도한 경로:\n - " + candidates[0].path + "\n - " + candidates[1].path);
@@ -49,8 +41,7 @@
   }
 
 
-  /* 3) 변수 라이브러리 불러오기 (CSV 또는 XML 모두 지원이라고 적혀있지만,
-        실제로는 importVariables는 XML만 지원한다는 점 참고) */
+  /* 3) 변수 라이브러리 불러오기 */
   try {
     doc.importVariables(csvFile);
   } catch (e) {
